@@ -174,6 +174,7 @@ app.get('/api/images', authShield, async (req, res) => {
   try {
     const result = await cloudinary.api.resources({
       resource_type: 'image',
+      type: 'upload',
       prefix: 'nova-collections/',
       max_results: 100,
       tags: true,
