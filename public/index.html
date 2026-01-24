@@ -457,6 +457,8 @@
       <input type="text" id="title" placeholder="Title" required>
       <textarea id="desc" placeholder="Description..." rows="4"></textarea>
       <input type="file" id="fIn" accept="video/*" style="margin: 10px 0;">
+      <input type="file" id="thumbIn" accept="image/*" style="margin:10px 0;">
+      <small style="color:#aaa">Optional custom thumbnail (jpg / png)</small>
       <button class="btn-create" style="width:100%; justify-content:center;" onclick="handleUpload()">
         Publish
       </button>
@@ -468,6 +470,19 @@
         </div>
         <div class="prog-bg"><div class="prog-fill" id="pBar"></div></div>
       </div>
+    </div>
+  </div>
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="toggleEdit(false)">&times;</span>
+      <h2>Edit Video</h2>
+  
+      <input type="text" id="editTitle" placeholder="Title">
+      <textarea id="editDesc" rows="4" placeholder="Description"></textarea>
+  
+      <button class="btn-create" style="width:100%" onclick="saveEdit()">
+        Save Changes
+      </button>
     </div>
   </div>
 
@@ -497,21 +512,31 @@
       }
 
       grid.innerHTML = list.map(v => `
-        <div class="video-card" onclick="openTheaterMode('${v.id}')">
-          <div class="thumbnail-box" onmouseenter="previewPlay(this)" onmouseleave="previewStop(this)">
-            <video src="${v.url}#t=0.5" muted loop preload="metadata"></video>
-          </div>
-          <div class="video-info">
-            <div class="v-details">
-              <h3>${escapeHtml(v.title)}</h3>
-              <p>${(v.size/1e6).toFixed(1)} MB</p>
-              <button class="del-btn" onclick="event.stopPropagation(); deleteVid('${v.id}')">
-                <i class="fas fa-trash"></i> Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      `).join('');
+  <div class="video-card" onclick="openTheaterMode('${v.id}')">
+    <div class="thumbnail-box"
+         onmouseenter="previewPlay(this)"
+         onmouseleave="previewStop(this)">
+
+      ${
+        v.thumbnail
+          ? `<img src="${v.thumbnail}" style="width:100%;height:100%;object-fit:cover;">`
+          : `<video src="${v.url}#t=0.5" muted loop preload="metadata"></video>`
+      }
+
+    </div>
+
+    <div class="video-info">
+      <div class="v-details">
+        <h3>${escapeHtml(v.title)}</h3>
+        <p>${(v.size / 1e6).toFixed(1)} MB</p>
+        <button class="del-btn"
+          onclick="event.stopPropagation(); deleteVid('${v.id}')">
+          <i class="fas fa-trash"></i> Delete
+        </button>
+      </div>
+    </div>
+  </div>
+`).join('');
     }
 
     function showEmptyState(message) {
@@ -549,55 +574,93 @@
       `).join('');
     }
 
+    // async function handleUpload() {
+    //   const file = document.getElementById('fIn').files[0];
+    //   const title = document.getElementById('title').value.trim();
+
+    //   if (!file) {
+    //     alert("Please select a video file!");
+    //     return;
+    //   }
+
+    //   if (!title) {
+    //     alert("Please enter a title!");
+    //     return;
+    //   }
+
+    //   const fd = new FormData();
+    //   fd.append('video', file);
+    //   fd.append('title', title);
+    //   fd.append('description', document.getElementById('desc').value);
+
+    //   document.getElementById('prog').style.display = 'block';
+      
+    //   const xhr = new XMLHttpRequest();
+      
+    //   xhr.upload.onprogress = (e) => {
+    //     if (e.lengthComputable) {
+    //       const percent = Math.round((e.loaded / e.total) * 100);
+    //       document.getElementById('pBar').style.width = percent + '%';
+    //       document.getElementById('pNum').innerText = percent + '%';
+    //     }
+    //   };
+
+    //   xhr.onload = () => {
+    //     if (xhr.status === 200) {
+    //       document.getElementById('pStat').innerText = 'Upload complete!';
+    //       setTimeout(() => location.reload(), 1000);
+    //     } else {
+    //       alert("Upload failed. Please try again.");
+    //       document.getElementById('prog').style.display = 'none';
+    //     }
+    //   };
+
+    //   xhr.onerror = () => {
+    //     alert("Network error. Please check your connection.");
+    //     document.getElementById('prog').style.display = 'none';
+    //   };
+
+    //   xhr.open('POST', '/api/upload');
+    //   xhr.send(fd);
+    // }
     async function handleUpload() {
-      const file = document.getElementById('fIn').files[0];
-      const title = document.getElementById('title').value.trim();
+    const file = document.getElementById('fIn').files[0];
+    const thumb = document.getElementById('thumbIn').files[0];
+    const title = document.getElementById('title').value.trim();
+    const desc = document.getElementById('desc').value;
 
-      if (!file) {
-        alert("Please select a video file!");
-        return;
-      }
+  if (!file || !title) {
+    alert("Video and title are required");
+    return;
+  }
 
-      if (!title) {
-        alert("Please enter a title!");
-        return;
-      }
+  const fd = new FormData();
+  fd.append('video', file);
+  fd.append('title', title);
+  fd.append('description', desc);
 
-      const fd = new FormData();
-      fd.append('video', file);
-      fd.append('title', title);
-      fd.append('description', document.getElementById('desc').value);
+  if (thumb) fd.append('thumbnail', thumb);
 
-      document.getElementById('prog').style.display = 'block';
-      
-      const xhr = new XMLHttpRequest();
-      
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const percent = Math.round((e.loaded / e.total) * 100);
-          document.getElementById('pBar').style.width = percent + '%';
-          document.getElementById('pNum').innerText = percent + '%';
-        }
-      };
+  document.getElementById('prog').style.display = 'block';
 
-      xhr.onload = () => {
-        if (xhr.status === 200) {
-          document.getElementById('pStat').innerText = 'Upload complete!';
-          setTimeout(() => location.reload(), 1000);
-        } else {
-          alert("Upload failed. Please try again.");
-          document.getElementById('prog').style.display = 'none';
-        }
-      };
+  const xhr = new XMLHttpRequest();
 
-      xhr.onerror = () => {
-        alert("Network error. Please check your connection.");
-        document.getElementById('prog').style.display = 'none';
-      };
-
-      xhr.open('POST', '/api/upload');
-      xhr.send(fd);
+  xhr.upload.onprogress = e => {
+    if (e.lengthComputable) {
+      const p = Math.round((e.loaded / e.total) * 100);
+      document.getElementById('pBar').style.width = p + '%';
+      document.getElementById('pNum').innerText = p + '%';
     }
+  };
+
+  xhr.onload = () => {
+    if (xhr.status === 200) location.reload();
+    else alert("Upload failed");
+  };
+
+  xhr.open('POST', '/api/upload');
+  xhr.send(fd);
+}
 
     function previewPlay(el) {
       const video = el.querySelector('video');
@@ -681,6 +744,39 @@
     // Initialize
     loadVideos();
   </script>
+    <script>
+      let editingId = null;
+  
+      function openEdit(id) {
+        const v = allVideos.find(x => x.id === id);
+        if (!v) return;
+  
+        editingId = id;
+        document.getElementById('editTitle').value = v.title;
+        document.getElementById('editDesc').value = v.description || '';
+        toggleEdit(true);
+      }
+  
+      function toggleEdit(show) {
+        document.getElementById('editModal').style.display = show ? 'flex' : 'none';
+      }
+  
+      async function saveEdit() {
+        const title = document.getElementById('editTitle').value.trim();
+        const desc = document.getElementById('editDesc').value;
+  
+        if (!title) return alert("Title required");
+  
+        const res = await fetch(`/api/videos/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, description: desc })
+        });
+  
+        if (res.ok) location.reload();
+        else alert("Update failed");
+      }
+    </script>
   <footer class="main-footer">
     <div class="footer-content">
       <h3>Discover More</h3>
@@ -692,3 +788,4 @@
   </footer>
 </body>
 </html>
+
