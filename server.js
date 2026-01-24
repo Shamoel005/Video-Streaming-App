@@ -276,6 +276,8 @@
 
 // server.timeout = 600000; // 10 minutes for large uploads
 
+
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -288,31 +290,21 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-/* ===================== ENV CHECK ===================== */
-const { ADMIN_EMAIL, ADMIN_PASSWORD, JWT_SECRET } = process.env;
+// Ensure local storage exists for temporary Multer processing
+const uploadDir = './uploads';
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
+/* --- CONFIGURATION --- */
+const { ADMIN_EMAIL, ADMIN_PASSWORD, JWT_SECRET } = process.env;
 if (!ADMIN_EMAIL || !ADMIN_PASSWORD || !JWT_SECRET) {
   console.error('❌ Missing environment variables');
   process.exit(1);
 }
 
-/* ===================== MIDDLEWARE ===================== */
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
-
-app.use(express.json({ limit: '2gb' }));
-app.use(express.urlencoded({ extended: true, limit: '2gb' }));
-app.use(cookieParser());
-app.use(express.static('public', { index: false }));
-
-/* ===================== CLOUDINARY ===================== */
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -320,11 +312,24 @@ cloudinary.config({
   secure: true
 });
 
-/* ===================== AUTH MIDDLEWARE ===================== */
+/* --- MULTER SETUP --- */
+const storage = multer.diskStorage({
+  destination: 'uploads/',
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const upload = multer({ storage, limits: { fileSize: 1024 * 1024 * 1024 } }); // 1GB Limit
+
+/* --- MIDDLEWARE --- */
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json());
+app.use(cookieParser());
+app.use(express.static('public'));
+
 const authShield = (req, res, next) => {
   const token = req.cookies.nova_auth;
   if (!token) return res.status(401).redirect('/login.html');
-
   try {
     req.user = jwt.verify(token, JWT_SECRET);
     next();
@@ -334,24 +339,20 @@ const authShield = (req, res, next) => {
   }
 };
 
-/* ===================== AUTH ROUTES ===================== */
+/* --- AUTH ROUTES --- */
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
-
   if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
     const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '30d' });
-
     res.cookie('nova_auth', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
-
     return res.json({ success: true });
   }
-
-  res.status(401).json({ success: false });
+  res.status(401).json({ success: false, message: "Invalid credentials" });
 });
 
 app.get('/api/logout', (req, res) => {
@@ -359,70 +360,7 @@ app.get('/api/logout', (req, res) => {
   res.redirect('/login.html');
 });
 
-/* ===================== PROTECTED PAGES ===================== */
-app.get('/', authShield, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.get('/photos.html', authShield, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'photos.html'));
-});
-
-/* ===================== MULTER (DISK STORAGE) ===================== */
-const storage = multer.diskStorage({
-  destination: 'uploads/',
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 1024 * 1024 * 1024 } // 1GB
-});
-
-/* ===================== VIDEO UPLOAD (1GB SAFE) ===================== */
-app.post('/api/upload', authShield, upload.single('video'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No file' });
-    }
-
-    cloudinary.uploader.upload_large(
-      req.file.path,
-      {
-        resource_type: 'video',
-        folder: 'video-streaming-app',
-        chunk_size: 6 * 1024 * 1024,
-        context: `title=${req.body.title || 'Untitled'}|description=${req.body.description || ''}`
-      },
-      (error, result) => {
-        fs.unlinkSync(req.file.path); // cleanup
-
-        if (error) {
-          console.error(error);
-          return res.status(500).json({ success: false, message: error.message });
-        }
-
-        res.json({
-          success: true,
-          video: {
-            id: result.public_id,
-            url: result.secure_url,
-            size: result.bytes,
-            duration: result.duration,
-            uploadedAt: result.created_at
-          }
-        });
-      }
-    );
-
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-/* ===================== FETCH VIDEOS ===================== */
+/* --- VIDEO API --- */
 app.get('/api/videos', authShield, async (req, res) => {
   try {
     const result = await cloudinary.api.resources({
@@ -431,40 +369,89 @@ app.get('/api/videos', authShield, async (req, res) => {
       max_results: 100,
       context: true
     });
-
-    const videos = result.resources.map(v => ({
+    res.json(result.resources.map(v => ({
       id: v.public_id,
       url: v.secure_url,
       title: v.context?.custom?.title || 'Untitled',
       description: v.context?.custom?.description || '',
+      thumbnail: v.context?.custom?.thumbnail || null,
       size: v.bytes,
       uploadedAt: v.created_at
-    }));
-
-    res.json(videos);
-  } catch (err) {
-    res.status(500).json({ success: false });
-  }
+    })));
+  } catch (err) { res.status(500).json({ success: false }); }
 });
 
-/* ===================== DELETE VIDEO ===================== */
+const multiUpload = upload.fields([
+  { name: 'video', maxCount: 1 },
+  { name: 'thumbnail', maxCount: 1 }
+]);
+
+app.post('/api/upload', authShield, multiUpload, async (req, res) => {
+  try {
+    const videoFile = req.files['video']?.[0];
+    const thumbFile = req.files['thumbnail']?.[0];
+    if (!videoFile) return res.status(400).json({ message: "Missing video" });
+
+    let thumbUrl = "";
+    if (thumbFile) {
+      const thumbRes = await cloudinary.uploader.upload(thumbFile.path, { folder: 'video-streaming-app/thumbs' });
+      thumbUrl = thumbRes.secure_url;
+      if (fs.existsSync(thumbFile.path)) fs.unlinkSync(thumbFile.path);
+    }
+
+    cloudinary.uploader.upload_large(videoFile.path, {
+      resource_type: 'video',
+      folder: 'video-streaming-app',
+      context: `title=${req.body.title || 'Untitled'}|description=${req.body.description || ''}|thumbnail=${thumbUrl}`
+    }, (error, result) => {
+      if (fs.existsSync(videoFile.path)) fs.unlinkSync(videoFile.path);
+      if (error) return res.status(500).json({ message: error.message });
+      res.json({ success: true, video: result });
+    });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
 app.delete('/api/videos/*', authShield, async (req, res) => {
   try {
     const publicId = req.params[0];
-    const result = await cloudinary.uploader.destroy(publicId, {
-      resource_type: 'video',
-      invalidate: true
+    await cloudinary.uploader.destroy(publicId, { resource_type: 'video', invalidate: true });
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ message: "Delete failed" }); }
+});
+
+/* --- IMAGE COLLECTION API (Restored from your comments) --- */
+app.get('/api/images', authShield, async (req, res) => {
+  try {
+    const result = await cloudinary.api.resources({
+      resource_type: 'image',
+      prefix: 'nova-collections/',
+      max_results: 100,
+      tags: true,
+      context: true
     });
-
-    res.json({ success: true, result });
-  } catch {
-    res.status(500).json({ success: false });
-  }
+    res.json(result.resources.map(img => ({
+      id: img.public_id,
+      url: img.secure_url,
+      title: img.context?.custom?.title || 'Untitled',
+      collection: img.tags[0] || 'General',
+      uploadedAt: img.created_at
+    })));
+  } catch (err) { res.status(500).json({ success: false }); }
 });
 
-/* ===================== START SERVER ===================== */
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+app.post('/api/upload-image', authShield, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'No image uploaded' });
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "nova-collections",
+      tags: [req.body.collection || 'General'],
+      context: `title=${req.body.title || 'Untitled'}`
+    });
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    res.json({ success: true, image: result });
+  } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
-server.timeout = 600000; // 10 minutes
+/* --- SERVER START --- */
+const server = app.listen(PORT, () => console.log(`🚀 NovaStream Running on Port ${PORT}`));
+server.timeout = 600000; // 10 minutes for large uploads
