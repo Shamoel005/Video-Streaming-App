@@ -161,7 +161,8 @@
     .video-card:hover .thumbnail-box { 
       border-color: var(--pink); 
     }
-    .thumbnail-box video { 
+    .thumbnail-box video,
+    .thumbnail-box img { 
       width: 100%; 
       height: 100%; 
       object-fit: cover; 
@@ -252,7 +253,8 @@
       background: #000; 
       flex-shrink: 0; 
     }
-    .side-thumb video { 
+    .side-thumb video,
+    .side-thumb img { 
       width: 100%; 
       height: 100%; 
       object-fit: cover; 
@@ -343,6 +345,7 @@
       text-align: center;
       padding: 60px 20px;
       color: var(--text-muted);
+      grid-column: 1 / -1;
     }
     .empty-state i {
       font-size: 64px;
@@ -376,43 +379,33 @@
       }
     }
     .main-footer {
-    border-top: 1px solid var(--border);
-    padding: 40px 20px;
-    margin-top: 60px;
-    text-align: center;
-    background: #0a0a0a;
-  }
-  .footer-content h3 {
-    color: var(--pink);
-    margin-bottom: 15px;
-  }
-  .view-photos-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    background: #1e1e1e;
-    color: white;
-    padding: 12px 25px;
-    border-radius: 30px;
-    text-decoration: none;
-    border: 1px solid var(--pink);
-    transition: 0.3s;
-    font-weight: bold;
-  }
-  .view-photos-btn:hover {
-    background: var(--pink);
-    color: black;
-    box-shadow: 0 0 20px var(--pink-glow);
-  }
-    .pin-card { position: relative; } /* Necessary for the badge positioning */
-    
-    .pin-card div { 
-      opacity: 0; 
-      transition: opacity 0.3s ease; 
+      border-top: 1px solid var(--border);
+      padding: 40px 20px;
+      margin-top: 60px;
+      text-align: center;
+      background: #0a0a0a;
     }
-    
-    .pin-card:hover div { 
-      opacity: 1; 
+    .footer-content h3 {
+      color: var(--pink);
+      margin-bottom: 15px;
+    }
+    .view-photos-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #1e1e1e;
+      color: white;
+      padding: 12px 25px;
+      border-radius: 30px;
+      text-decoration: none;
+      border: 1px solid var(--pink);
+      transition: 0.3s;
+      font-weight: bold;
+    }
+    .view-photos-btn:hover {
+      background: var(--pink);
+      color: black;
+      box-shadow: 0 0 20px var(--pink-glow);
     }
   </style>
 </head>
@@ -472,141 +465,7 @@
       </div>
     </div>
   </div>
-  <div class="modal" id="editModal">
-    <div class="modal-content">
-      <span class="close-btn" onclick="toggleEdit(false)">&times;</span>
-      <h2>Edit Video</h2>
-  
-      <input type="text" id="editTitle" placeholder="Title">
-      <textarea id="editDesc" rows="4" placeholder="Description"></textarea>
-  
-      <button class="btn-create" style="width:100%" onclick="saveEdit()">
-        Save Changes
-      </button>
-    </div>
-  </div>
 
-  <script>
-  let allVideos = [];
-
-  async function loadVideos() {
-    try {
-      const res = await fetch('/api/videos');
-      if (res.status === 401) return window.location.href = '/login.html';
-      allVideos = await res.json();
-      renderGrid(allVideos);
-    } catch (err) { showEmptyState("Unable to load videos"); }
-  }
-
-  function renderGrid(list) {
-    const grid = document.getElementById('vGrid');
-    if (list.length === 0) {
-      showEmptyState("No videos yet. Click Create to upload!");
-      return;
-    }
-
-    grid.innerHTML = list.map(v => `
-      <div class="video-card" onclick="openTheaterMode('${v.id}')">
-        <div class="thumbnail-box" onmouseenter="previewPlay(this)" onmouseleave="previewStop(this)">
-          ${v.thumbnail 
-            ? `<img src="${v.thumbnail}" style="width:100%;height:100%;object-fit:cover;">`
-            : `<video src="${v.url}#t=0.5" muted loop preload="metadata"></video>`
-          }
-        </div>
-        <div class="video-info">
-          <div class="v-details">
-            <h3>${escapeHtml(v.title)}</h3>
-            <p>${(v.size / 1e6).toFixed(1)} MB</p>
-            <button class="del-btn" onclick="event.stopPropagation(); deleteVid('${v.id}')">
-              <i class="fas fa-trash"></i> Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  async function handleUpload() {
-    const file = document.getElementById('fIn').files[0];
-    const thumb = document.getElementById('thumbIn').files[0];
-    const title = document.getElementById('title').value.trim();
-    const desc = document.getElementById('desc').value;
-
-    if (!file || !title) return alert("Video and title are required");
-
-    const fd = new FormData();
-    fd.append('video', file);
-    fd.append('thumbnail', thumb); // matches multiUpload.fields
-    fd.append('title', title);
-    fd.append('description', desc);
-
-    document.getElementById('prog').style.display = 'block';
-    const xhr = new XMLHttpRequest();
-    xhr.upload.onprogress = e => {
-      if (e.lengthComputable) {
-        const p = Math.round((e.loaded / e.total) * 100);
-        document.getElementById('pBar').style.width = p + '%';
-        document.getElementById('pNum').innerText = p + '%';
-      }
-    };
-    xhr.onload = () => xhr.status === 200 ? location.reload() : alert("Upload failed");
-    xhr.open('POST', '/api/upload');
-    xhr.send(fd);
-  }
-
-  async function deleteVid(id) {
-    if (!confirm("Are you sure?")) return;
-    const res = await fetch(`/api/videos/${id}`, { method: 'DELETE' });
-    if (res.ok) loadVideos();
-  }
-
-  function goHome() {
-    document.getElementById('mainPlayer').src = '';
-    document.getElementById('playerView').style.display = 'none';
-    document.getElementById('homeView').style.display = 'block';
-  }
-
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  loadVideos();
-</script>
-    <script>
-      let editingId = null;
-  
-      function openEdit(id) {
-        const v = allVideos.find(x => x.id === id);
-        if (!v) return;
-  
-        editingId = id;
-        document.getElementById('editTitle').value = v.title;
-        document.getElementById('editDesc').value = v.description || '';
-        toggleEdit(true);
-      }
-  
-      function toggleEdit(show) {
-        document.getElementById('editModal').style.display = show ? 'flex' : 'none';
-      }
-  
-      async function saveEdit() {
-        const title = document.getElementById('editTitle').value.trim();
-        const desc = document.getElementById('editDesc').value;
-  
-        if (!title) return alert("Title required");
-  
-        const res = await fetch(`/api/videos/${editingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, description: desc })
-        });
-  
-        if (res.ok) location.reload();
-        else alert("Update failed");
-      }
-    </script>
   <footer class="main-footer">
     <div class="footer-content">
       <h3>Discover More</h3>
@@ -616,6 +475,185 @@
       </a>
     </div>
   </footer>
+
+  <script>
+    let allVideos = [];
+
+    async function loadVideos() {
+      try {
+        const res = await fetch('/api/videos');
+        if (res.status === 401) return window.location.href = '/login.html';
+        allVideos = await res.json();
+        renderGrid(allVideos);
+      } catch (err) { 
+        showEmptyState("Unable to load videos"); 
+      }
+    }
+
+    function renderGrid(list) {
+      const grid = document.getElementById('vGrid');
+      if (list.length === 0) {
+        showEmptyState("No videos yet. Click Create to upload!");
+        return;
+      }
+
+      grid.innerHTML = list.map(v => `
+        <div class="video-card" onclick="openTheaterMode('${v.id}')">
+          <div class="thumbnail-box" onmouseenter="previewPlay(this)" onmouseleave="previewStop(this)">
+            ${v.thumbnail 
+              ? `<img src="${v.thumbnail}" style="width:100%;height:100%;object-fit:cover;">`
+              : `<video src="${v.url}#t=0.5" muted loop preload="metadata"></video>`
+            }
+          </div>
+          <div class="video-info">
+            <div class="v-details">
+              <h3>${escapeHtml(v.title)}</h3>
+              <p>${(v.size / 1e6).toFixed(1)} MB</p>
+              <button class="del-btn" onclick="event.stopPropagation(); deleteVid('${v.id}')">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openTheaterMode(id) {
+      const video = allVideos.find(v => v.id === id);
+      if (!video) return;
+
+      // Set main player
+      document.getElementById('mainPlayer').src = video.url;
+      document.getElementById('viewTitle').innerText = video.title;
+      document.getElementById('viewDesc').innerText = video.description || 'No description';
+
+      // Show player view, hide grid
+      document.getElementById('homeView').style.display = 'none';
+      document.getElementById('playerView').style.display = 'grid';
+
+      // Load sidebar with other videos
+      const sidebar = document.getElementById('sidebarGrid');
+      const others = allVideos.filter(v => v.id !== id);
+      sidebar.innerHTML = others.map(v => `
+        <div class="side-card" onclick="openTheaterMode('${v.id}')">
+          <div class="side-thumb">
+            ${v.thumbnail 
+              ? `<img src="${v.thumbnail}" style="width:100%;height:100%;object-fit:cover;">`
+              : `<video src="${v.url}#t=0.5" muted preload="metadata"></video>`
+            }
+          </div>
+          <div class="side-info">
+            <h4>${escapeHtml(v.title)}</h4>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function previewPlay(el) {
+      const video = el.querySelector('video');
+      if (video) video.play();
+    }
+
+    function previewStop(el) {
+      const video = el.querySelector('video');
+      if (video) {
+        video.pause();
+        video.currentTime = 0;
+      }
+    }
+
+    async function handleUpload() {
+      const file = document.getElementById('fIn').files[0];
+      const thumb = document.getElementById('thumbIn').files[0];
+      const title = document.getElementById('title').value.trim();
+      const desc = document.getElementById('desc').value;
+
+      if (!file || !title) return alert("Video and title are required");
+
+      const fd = new FormData();
+      fd.append('video', file);
+      if (thumb) fd.append('thumbnail', thumb);
+      fd.append('title', title);
+      fd.append('description', desc);
+
+      document.getElementById('prog').style.display = 'block';
+      const xhr = new XMLHttpRequest();
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const p = Math.round((e.loaded / e.total) * 100);
+          document.getElementById('pBar').style.width = p + '%';
+          document.getElementById('pNum').innerText = p + '%';
+        }
+      };
+      xhr.onload = () => xhr.status === 200 ? location.reload() : alert("Upload failed");
+      xhr.open('POST', '/api/upload');
+      xhr.send(fd);
+    }
+
+    async function deleteVid(id) {
+      if (!confirm("Are you sure?")) return;
+      const res = await fetch(`/api/videos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (res.ok) loadVideos();
+    }
+
+    function goHome() {
+      document.getElementById('mainPlayer').src = '';
+      document.getElementById('playerView').style.display = 'none';
+      document.getElementById('homeView').style.display = 'block';
+    }
+
+    function toggleModal(show) {
+      document.getElementById('upModal').style.display = show ? 'flex' : 'none';
+      if (!show) {
+        document.getElementById('title').value = '';
+        document.getElementById('desc').value = '';
+        document.getElementById('fIn').value = '';
+        document.getElementById('thumbIn').value = '';
+        document.getElementById('prog').style.display = 'none';
+        document.getElementById('pBar').style.width = '0%';
+      }
+    }
+
+    function closeModalOnOutsideClick(event) {
+      if (event.target.id === 'upModal') {
+        toggleModal(false);
+      }
+    }
+
+    function filterVideos() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      if (!query) {
+        renderGrid(allVideos);
+        return;
+      }
+      const filtered = allVideos.filter(v => 
+        v.title.toLowerCase().includes(query) || 
+        (v.description && v.description.toLowerCase().includes(query))
+      );
+      renderGrid(filtered);
+    }
+
+    function showEmptyState(message) {
+      const grid = document.getElementById('vGrid');
+      grid.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-video"></i>
+          <h2>${message}</h2>
+        </div>
+      `;
+    }
+
+    function logout() {
+      window.location.href = '/api/logout';
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    loadVideos();
+  </script>
 </body>
 </html>
-
