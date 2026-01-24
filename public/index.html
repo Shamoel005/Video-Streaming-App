@@ -487,263 +487,93 @@
   </div>
 
   <script>
-    let allVideos = [];
+  let allVideos = [];
 
-    async function loadVideos() {
-      try {
-        const res = await fetch('/api/videos');
-        if (res.status === 401) {
-          return window.location.href = '/login.html';
-        }
-        allVideos = await res.json();
-        renderGrid(allVideos);
-      } catch (err) {
-        console.error("Error loading videos:", err);
-        showEmptyState("Unable to load videos");
-      }
+  async function loadVideos() {
+    try {
+      const res = await fetch('/api/videos');
+      if (res.status === 401) return window.location.href = '/login.html';
+      allVideos = await res.json();
+      renderGrid(allVideos);
+    } catch (err) { showEmptyState("Unable to load videos"); }
+  }
+
+  function renderGrid(list) {
+    const grid = document.getElementById('vGrid');
+    if (list.length === 0) {
+      showEmptyState("No videos yet. Click Create to upload!");
+      return;
     }
 
-    function renderGrid(list) {
-      const grid = document.getElementById('vGrid');
-      
-      if (list.length === 0) {
-        showEmptyState("No videos yet. Click Create to upload your first video!");
-        return;
-      }
-
-      grid.innerHTML = list.map(v => `
-  <div class="video-card" onclick="openTheaterMode('${v.id}')">
-    <div class="thumbnail-box"
-         onmouseenter="previewPlay(this)"
-         onmouseleave="previewStop(this)">
-
-      ${
-        v.thumbnail
-          ? `<img src="${v.thumbnail}" style="width:100%;height:100%;object-fit:cover;">`
-          : `<video src="${v.url}#t=0.5" muted loop preload="metadata"></video>`
-      }
-
-    </div>
-
-    <div class="video-info">
-      <div class="v-details">
-        <h3>${escapeHtml(v.title)}</h3>
-        <p>${(v.size / 1e6).toFixed(1)} MB</p>
-        <button class="del-btn"
-          onclick="event.stopPropagation(); deleteVid('${v.id}')">
-          <i class="fas fa-trash"></i> Delete
-        </button>
+    grid.innerHTML = list.map(v => `
+      <div class="video-card" onclick="openTheaterMode('${v.id}')">
+        <div class="thumbnail-box" onmouseenter="previewPlay(this)" onmouseleave="previewStop(this)">
+          ${v.thumbnail 
+            ? `<img src="${v.thumbnail}" style="width:100%;height:100%;object-fit:cover;">`
+            : `<video src="${v.url}#t=0.5" muted loop preload="metadata"></video>`
+          }
+        </div>
+        <div class="video-info">
+          <div class="v-details">
+            <h3>${escapeHtml(v.title)}</h3>
+            <p>${(v.size / 1e6).toFixed(1)} MB</p>
+            <button class="del-btn" onclick="event.stopPropagation(); deleteVid('${v.id}')">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-`).join('');
-    }
+    `).join('');
+  }
 
-    function showEmptyState(message) {
-      document.getElementById('vGrid').innerHTML = `
-        <div class="empty-state" style="grid-column: 1/-1;">
-          <i class="fas fa-video"></i>
-          <p>${message}</p>
-        </div>
-      `;
-    }
-
-    function openTheaterMode(id) {
-      const vid = allVideos.find(v => v.id === id);
-      if (!vid) return;
-
-      document.getElementById('homeView').style.display = 'none';
-      document.getElementById('playerView').style.display = 'grid';
-      window.scrollTo(0, 0);
-
-      const mainPlayer = document.getElementById('mainPlayer');
-      mainPlayer.src = vid.url;
-      document.getElementById('viewTitle').innerText = vid.title;
-      document.getElementById('viewDesc').innerText = vid.description || "No description provided.";
-
-      const others = allVideos.filter(v => v.id !== id);
-      document.getElementById('sidebarGrid').innerHTML = others.map(v => `
-        <div class="side-card" onclick="openTheaterMode('${v.id}')">
-          <div class="side-thumb">
-            <video src="${v.url}#t=0.5" muted preload="metadata"></video>
-          </div>
-          <div class="side-info">
-            <h4>${escapeHtml(v.title)}</h4>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    // async function handleUpload() {
-    //   const file = document.getElementById('fIn').files[0];
-    //   const title = document.getElementById('title').value.trim();
-
-    //   if (!file) {
-    //     alert("Please select a video file!");
-    //     return;
-    //   }
-
-    //   if (!title) {
-    //     alert("Please enter a title!");
-    //     return;
-    //   }
-
-    //   const fd = new FormData();
-    //   fd.append('video', file);
-    //   fd.append('title', title);
-    //   fd.append('description', document.getElementById('desc').value);
-
-    //   document.getElementById('prog').style.display = 'block';
-      
-    //   const xhr = new XMLHttpRequest();
-      
-    //   xhr.upload.onprogress = (e) => {
-    //     if (e.lengthComputable) {
-    //       const percent = Math.round((e.loaded / e.total) * 100);
-    //       document.getElementById('pBar').style.width = percent + '%';
-    //       document.getElementById('pNum').innerText = percent + '%';
-    //     }
-    //   };
-
-    //   xhr.onload = () => {
-    //     if (xhr.status === 200) {
-    //       document.getElementById('pStat').innerText = 'Upload complete!';
-    //       setTimeout(() => location.reload(), 1000);
-    //     } else {
-    //       alert("Upload failed. Please try again.");
-    //       document.getElementById('prog').style.display = 'none';
-    //     }
-    //   };
-
-    //   xhr.onerror = () => {
-    //     alert("Network error. Please check your connection.");
-    //     document.getElementById('prog').style.display = 'none';
-    //   };
-
-    //   xhr.open('POST', '/api/upload');
-    //   xhr.send(fd);
-    // }
-    async function handleUpload() {
+  async function handleUpload() {
     const file = document.getElementById('fIn').files[0];
     const thumb = document.getElementById('thumbIn').files[0];
     const title = document.getElementById('title').value.trim();
     const desc = document.getElementById('desc').value;
 
-  if (!file || !title) {
-    alert("Video and title are required");
-    return;
+    if (!file || !title) return alert("Video and title are required");
+
+    const fd = new FormData();
+    fd.append('video', file);
+    fd.append('thumbnail', thumb); // matches multiUpload.fields
+    fd.append('title', title);
+    fd.append('description', desc);
+
+    document.getElementById('prog').style.display = 'block';
+    const xhr = new XMLHttpRequest();
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) {
+        const p = Math.round((e.loaded / e.total) * 100);
+        document.getElementById('pBar').style.width = p + '%';
+        document.getElementById('pNum').innerText = p + '%';
+      }
+    };
+    xhr.onload = () => xhr.status === 200 ? location.reload() : alert("Upload failed");
+    xhr.open('POST', '/api/upload');
+    xhr.send(fd);
   }
 
-  const fd = new FormData();
-  fd.append('video', file);
-  fd.append('title', title);
-  fd.append('description', desc);
+  async function deleteVid(id) {
+    if (!confirm("Are you sure?")) return;
+    const res = await fetch(`/api/videos/${id}`, { method: 'DELETE' });
+    if (res.ok) loadVideos();
+  }
 
-  if (thumb) fd.append('thumbnail', thumb);
+  function goHome() {
+    document.getElementById('mainPlayer').src = '';
+    document.getElementById('playerView').style.display = 'none';
+    document.getElementById('homeView').style.display = 'block';
+  }
 
-  document.getElementById('prog').style.display = 'block';
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
 
-  const xhr = new XMLHttpRequest();
-
-  xhr.upload.onprogress = e => {
-    if (e.lengthComputable) {
-      const p = Math.round((e.loaded / e.total) * 100);
-      document.getElementById('pBar').style.width = p + '%';
-      document.getElementById('pNum').innerText = p + '%';
-    }
-  };
-
-  xhr.onload = () => {
-    if (xhr.status === 200) location.reload();
-    else alert("Upload failed");
-  };
-
-  xhr.open('POST', '/api/upload');
-  xhr.send(fd);
-}
-
-    function previewPlay(el) {
-      const video = el.querySelector('video');
-      if (video) video.play().catch(() => {});
-    }
-
-    function previewStop(el) {
-      const video = el.querySelector('video');
-      if (video) {
-        video.pause();
-        video.currentTime = 0.5;
-      }
-    }
-
-    function goHome() {
-      const mainPlayer = document.getElementById('mainPlayer');
-      mainPlayer.pause();
-      mainPlayer.src = '';
-      document.getElementById('playerView').style.display = 'none';
-      document.getElementById('homeView').style.display = 'block';
-    }
-
-    function toggleModal(show) {
-      document.getElementById('upModal').style.display = show ? 'flex' : 'none';
-      if (!show) {
-        // Reset form
-        document.getElementById('title').value = '';
-        document.getElementById('desc').value = '';
-        document.getElementById('fIn').value = '';
-        document.getElementById('prog').style.display = 'none';
-        document.getElementById('pBar').style.width = '0%';
-      }
-    }
-
-    function closeModalOnOutsideClick(event) {
-      if (event.target === document.getElementById('upModal')) {
-        toggleModal(false);
-      }
-    }
-
-    function filterVideos() {
-      const query = document.getElementById('searchInput').value.toLowerCase();
-      const filtered = allVideos.filter(v => 
-        v.title.toLowerCase().includes(query) ||
-        (v.description && v.description.toLowerCase().includes(query))
-      );
-      renderGrid(filtered);
-    }
-
-    async function deleteVid(id) {
-      if (!confirm("Are you sure you want to delete this video?")) return;
-
-      try {
-        const res = await fetch(`/api/videos/${encodeURIComponent(id)}`, {
-          method: 'DELETE'
-        });
-
-        if (res.ok) {
-          await loadVideos();
-        } else {
-          alert("Failed to delete video.");
-        }
-      } catch (err) {
-        console.error("Delete error:", err);
-        alert("Error deleting video.");
-      }
-    }
-
-    function logout() {
-      if (confirm("Are you sure you want to logout?")) {
-        window.location.href = '/api/logout';
-      }
-    }
-
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    // Initialize
-    loadVideos();
-  </script>
+  loadVideos();
+</script>
     <script>
       let editingId = null;
   
