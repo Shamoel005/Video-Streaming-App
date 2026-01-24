@@ -15,7 +15,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Ensure uploads folder exists
-const uploadDir = './uploads';
+const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
 /* --- CONFIGURATION --- */
@@ -34,21 +34,25 @@ cloudinary.config({
 
 /* --- MULTER SETUP --- */
 const storage = multer.diskStorage({
-  destination: 'uploads/',
+  destination: uploadDir,
   filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
 });
 const upload = multer({ storage, limits: { fileSize: 1024 * 1024 * 1024 } }); // 1GB
 
 /* --- MIDDLEWARE --- */
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({
+  origin: true,           // Accept requests from frontend
+  credentials: true       // Allow cookies
+}));
 app.use(express.json());
 app.use(cookieParser());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Auth middleware
+/* --- AUTH MIDDLEWARE --- */
 const authShield = (req, res, next) => {
   const token = req.cookies.nova_auth;
   if (!token) return res.status(401).redirect('/login.html');
+
   try {
     req.user = jwt.verify(token, JWT_SECRET);
     next();
@@ -71,7 +75,7 @@ app.post('/api/login', (req, res) => {
     });
     return res.json({ success: true });
   }
-  res.status(401).json({ success: false, message: "Invalid credentials" });
+  res.status(401).json({ success: false, message: 'Invalid credentials' });
 });
 
 app.get('/api/logout', (req, res) => {
@@ -83,7 +87,6 @@ app.get('/api/logout', (req, res) => {
 app.get('/', authShield, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-
 app.get('/photos.html', authShield, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'photos.html'));
 });
@@ -124,7 +127,7 @@ app.post('/api/upload', authShield, multiUpload, async (req, res) => {
   try {
     const videoFile = req.files['video']?.[0];
     const thumbFile = req.files['thumbnail']?.[0];
-    if (!videoFile) return res.status(400).json({ message: "Missing video" });
+    if (!videoFile) return res.status(400).json({ message: 'Missing video file' });
 
     let thumbUrl = '';
     if (thumbFile) {
@@ -149,7 +152,7 @@ app.post('/api/upload', authShield, multiUpload, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Upload error:', err);
+    console.error('Video upload error:', err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -164,8 +167,8 @@ app.delete('/api/videos/*', authShield, async (req, res) => {
     });
     res.json({ success: true });
   } catch (err) {
-    console.error('Delete error:', err);
-    res.status(500).json({ message: "Delete failed" });
+    console.error('Video delete error:', err);
+    res.status(500).json({ message: 'Delete failed' });
   }
 });
 
@@ -185,7 +188,7 @@ app.get('/api/images', authShield, async (req, res) => {
       id: img.public_id,
       url: img.secure_url,
       title: img.context?.custom?.title || 'Untitled',
-      collection: img.tags[0] || 'General',
+      collection: img.tags?.[0] || 'General',
       uploadedAt: img.created_at
     })));
   } catch (err) {
@@ -199,7 +202,7 @@ app.post('/api/upload-image', authShield, upload.single('image'), async (req, re
     if (!req.file) return res.status(400).json({ message: 'No image uploaded' });
 
     const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "nova-collections",
+      folder: 'nova-collections',
       tags: [req.body.collection || 'General'],
       context: `title=${req.body.title || 'Untitled'}`
     });
@@ -227,11 +230,11 @@ app.delete('/api/images/*', authShield, async (req, res) => {
 });
 
 /* --- SERVER START --- */
-const server = app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 NovaStream Running on Port ${PORT}`);
   console.log(`🔒 Environment: ${process.env.NODE_ENV || 'development'}`);
-});
-server.timeout = 600000; // 10 minutes for large uploads
+}).timeout = 600000; // 10 minutes for large uploads
+
 
 
 
