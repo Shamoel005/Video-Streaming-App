@@ -1,240 +1,749 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import { v2 as cloudinary } from 'cloudinary';
-import multer from 'multer';
-import jwt from 'jsonwebtoken';
-import cookieParser from 'cookie-parser';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-dotenv.config();
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Ensure uploads folder exists
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
-
-/* --- CONFIGURATION --- */
-const { ADMIN_EMAIL, ADMIN_PASSWORD, JWT_SECRET } = process.env;
-if (!ADMIN_EMAIL || !ADMIN_PASSWORD || !JWT_SECRET) {
-  console.error('❌ Missing environment variables');
-  process.exit(1);
-}
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true
-});
-
-/* --- MULTER SETUP --- */
-const storage = multer.diskStorage({
-  destination: uploadDir,
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage, limits: { fileSize: 1024 * 1024 * 1024 } }); // 1GB
-
-/* --- MIDDLEWARE --- */
-app.use(cors({
-  origin: true,           // Accept requests from frontend
-  credentials: true       // Allow cookies
-}));
-app.use(express.json());
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
-
-/* --- AUTH MIDDLEWARE --- */
-const authShield = (req, res, next) => {
-  const token = req.cookies.nova_auth;
-  if (!token) return res.status(401).redirect('/login.html');
-
-  try {
-    req.user = jwt.verify(token, JWT_SECRET);
-    next();
-  } catch {
-    res.clearCookie('nova_auth');
-    res.status(401).redirect('/login.html');
-  }
-};
-
-/* --- AUTH ROUTES --- */
-app.post('/api/login', (req, res) => {
-  const { email, password } = req.body;
-  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-    const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '30d' });
-    res.cookie('nova_auth', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000
-    });
-    return res.json({ success: true });
-  }
-  res.status(401).json({ success: false, message: 'Invalid credentials' });
-});
-
-app.get('/api/logout', (req, res) => {
-  res.clearCookie('nova_auth');
-  res.redirect('/login.html');
-});
-
-/* --- PROTECTED HTML ROUTES --- */
-app.get('/', authShield, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-app.get('/photos.html', authShield, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'photos.html'));
-});
-
-/* --- VIDEO API --- */
-app.get('/api/videos', authShield, async (req, res) => {
-  try {
-    const result = await cloudinary.api.resources({
-      type: 'upload',
-      resource_type: 'video',
-      prefix: 'video-streaming-app/',
-      max_results: 100,
-      context: true
-    });
-
-    res.json(result.resources.map(v => ({
-      id: v.public_id,
-      url: v.secure_url,
-      title: v.context?.custom?.title || 'Untitled',
-      description: v.context?.custom?.description || '',
-      thumbnail: v.context?.custom?.thumbnail || null,
-      size: v.bytes,
-      uploadedAt: v.created_at
-    })));
-  } catch (err) {
-    console.error('Error fetching videos:', err);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-/* --- VIDEO UPLOAD --- */
-const multiUpload = upload.fields([
-  { name: 'video', maxCount: 1 },
-  { name: 'thumbnail', maxCount: 1 }
-]);
-
-app.post('/api/upload', authShield, multiUpload, async (req, res) => {
-  try {
-    const videoFile = req.files['video']?.[0];
-    const thumbFile = req.files['thumbnail']?.[0];
-    if (!videoFile) return res.status(400).json({ message: 'Missing video file' });
-
-    let thumbUrl = '';
-    if (thumbFile) {
-      const thumbRes = await cloudinary.uploader.upload(thumbFile.path, {
-        folder: 'video-streaming-app/thumbs'
-      });
-      thumbUrl = thumbRes.secure_url;
-      fs.unlinkSync(thumbFile.path);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NovaStream | Cinematic Video Vault</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --pink: #ff7eb9;
+      --pink-glow: rgba(255, 126, 185, 0.3);
+      --bg: #0f0f0f;
+      --header-bg: #0f0f0f;
+      --card-bg: #1e1e1e;
+      --text: #ffffff;
+      --text-muted: #aaaaaa;
+      --border: #333333;
     }
 
-    cloudinary.uploader.upload_large(videoFile.path, {
-      resource_type: 'video',
-      folder: 'video-streaming-app',
-      context: `title=${req.body.title || 'Untitled'}|description=${req.body.description || ''}|thumbnail=${thumbUrl}`
-    }, (error, result) => {
-      fs.unlinkSync(videoFile.path);
-      if (error) {
-        console.error('Cloudinary upload error:', error);
-        return res.status(500).json({ message: error.message });
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding-top: 70px;
+      overflow-x: hidden;
+    }
+
+    /* --- NAVIGATION BAR --- */
+    .navbar {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      height: 60px;
+      background: var(--header-bg);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+    }
+
+    .logo { 
+      font-size: 22px; 
+      font-weight: 900; 
+      cursor: pointer; 
+      letter-spacing: -1px;
+      user-select: none;
+    }
+    .logo span { 
+      color: var(--pink); 
+      text-shadow: 0 0 10px var(--pink); 
+    }
+
+    .search-area { 
+      flex: 0 1 500px; 
+      display: flex; 
+    }
+    .search-area input {
+      width: 100%;
+      background: #121212;
+      border: 1px solid var(--border);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 40px 0 0 40px;
+      outline: none;
+      font-size: 15px;
+      transition: border-color 0.3s;
+    }
+    .search-area input:focus { 
+      border-color: var(--pink); 
+    }
+    .search-area button {
+      background: #222;
+      border: 1px solid var(--border);
+      border-left: none;
+      color: white;
+      padding: 0 20px;
+      border-radius: 0 40px 40px 0;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .search-area button:hover {
+      background: #333;
+    }
+
+    .nav-actions { 
+      display: flex; 
+      align-items: center; 
+      gap: 12px; 
+    }
+
+    .btn-create {
+      background: var(--pink);
+      color: black;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .btn-create:hover { 
+      transform: scale(1.05); 
+      box-shadow: 0 0 15px var(--pink); 
+    }
+
+    .btn-logout {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 15px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: color 0.3s, border-color 0.3s;
+    }
+    .btn-logout:hover { 
+      color: white; 
+      border-color: #ff4d4d; 
+    }
+
+    /* --- HOME VIEW (GRID) --- */
+    .container { 
+      padding: 24px; 
+      max-width: 1800px; 
+      margin: 0 auto; 
+    }
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 30px 20px;
+    }
+
+    .video-card { 
+      cursor: pointer; 
+      border-radius: 12px; 
+      transition: transform 0.3s; 
+    }
+    .video-card:hover {
+      transform: translateY(-4px);
+    }
+    .thumbnail-box {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid transparent;
+      transition: border-color 0.3s;
+    }
+    .video-card:hover .thumbnail-box { 
+      border-color: var(--pink); 
+    }
+    .thumbnail-box video,
+    .thumbnail-box img { 
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; 
+    }
+    
+    .video-info { 
+      display: flex; 
+      margin-top: 12px; 
+      gap: 12px; 
+    }
+    .v-details h3 { 
+      margin: 0; 
+      font-size: 16px; 
+      line-height: 1.4;
+      font-weight: 600;
+    }
+    .v-details p { 
+      margin: 6px 0; 
+      color: var(--text-muted); 
+      font-size: 14px; 
+    }
+    .del-btn { 
+      color: #ff4d4d; 
+      background: none; 
+      border: none; 
+      font-size: 12px; 
+      cursor: pointer; 
+      padding: 0; 
+      margin-top: 8px; 
+      opacity: 0.6;
+      transition: opacity 0.3s;
+    }
+    .del-btn:hover { 
+      opacity: 1; 
+      text-decoration: underline; 
+    }
+
+    /* --- THEATER MODE (PLAYER VIEW) --- */
+    #playerView {
+      display: none;
+      padding: 24px 60px;
+      max-width: 1600px;
+      margin: 0 auto;
+      grid-template-columns: 1fr 400px;
+      gap: 24px;
+    }
+
+    .main-video-col video {
+      width: 100%;
+      aspect-ratio: 16/9;
+      border-radius: 12px;
+      background: #000;
+    }
+
+    .main-video-info h2 { 
+      font-size: 24px; 
+      margin: 20px 0 10px;
+      font-weight: 600;
+    }
+    .desc-box {
+      background: #272727;
+      padding: 15px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+
+    .sidebar-col { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 16px; 
+    }
+    .side-card { 
+      display: flex; 
+      gap: 12px; 
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .side-card:hover {
+      transform: translateX(4px);
+    }
+    .side-thumb { 
+      width: 160px; 
+      height: 90px; 
+      border-radius: 8px; 
+      overflow: hidden; 
+      background: #000; 
+      flex-shrink: 0; 
+    }
+    .side-thumb video,
+    .side-thumb img { 
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; 
+    }
+    .side-info h4 { 
+      margin: 0; 
+      font-size: 14px; 
+      line-height: 1.3; 
+      color: #fff;
+      font-weight: 500;
+    }
+
+    /* --- UPLOAD MODAL --- */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+    .modal-content {
+      background: #1e1e1e;
+      width: 95%;
+      max-width: 500px;
+      padding: 30px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+    .modal-content h2 { 
+      margin-top: 0; 
+      color: var(--pink); 
+    }
+    .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 25px;
+      font-size: 30px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: color 0.3s;
+    }
+    .close-btn:hover {
+      color: white;
+    }
+
+    .modal-content input[type="text"],
+    .modal-content textarea {
+      width: 100%;
+      background: #000;
+      border: 1px solid #333;
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .modal-content input[type="text"]:focus,
+    .modal-content textarea:focus {
+      outline: none;
+      border-color: var(--pink);
+    }
+
+    /* --- PROGRESS BAR --- */
+    .prog-wrap { 
+      display: none; 
+      margin-top: 20px; 
+    }
+    .prog-bg { 
+      background: #333; 
+      height: 8px; 
+      border-radius: 10px; 
+      overflow: hidden; 
+    }
+    .prog-fill { 
+      height: 100%; 
+      background: var(--pink); 
+      width: 0%; 
+      transition: width 0.3s; 
+      box-shadow: 0 0 10px var(--pink); 
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      grid-column: 1 / -1;
+    }
+    .empty-state i {
+      font-size: 64px;
+      margin-bottom: 20px;
+      opacity: 0.3;
+    }
+
+    @media (max-width: 1000px) {
+      #playerView { 
+        grid-template-columns: 1fr; 
+        padding: 15px; 
       }
-      res.json({ success: true, video: result });
-    });
+      .navbar {
+        padding: 0 15px;
+      }
+      .search-area {
+        flex: 1;
+        max-width: 300px;
+      }
+    }
 
-  } catch (err) {
-    console.error('Video upload error:', err);
-    res.status(500).json({ message: err.message });
-  }
-});
+    @media (max-width: 600px) {
+      .logo {
+        font-size: 18px;
+      }
+      .search-area {
+        display: none;
+      }
+      .btn-create span {
+        display: none;
+      }
+    }
+    .main-footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 20px;
+      margin-top: 60px;
+      text-align: center;
+      background: #0a0a0a;
+    }
+    .footer-content h3 {
+      color: var(--pink);
+      margin-bottom: 15px;
+    }
+    .view-photos-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #1e1e1e;
+      color: white;
+      padding: 12px 25px;
+      border-radius: 30px;
+      text-decoration: none;
+      border: 1px solid var(--pink);
+      transition: 0.3s;
+      font-weight: bold;
+    }
+    .view-photos-btn:hover {
+      background: var(--pink);
+      color: black;
+      box-shadow: 0 0 20px var(--pink-glow);
+    }
+  </style>
+</head>
+<body>
 
-/* --- VIDEO DELETE --- */
-app.delete('/api/videos/*', authShield, async (req, res) => {
-  try {
-    const publicId = req.params[0];
-    await cloudinary.uploader.destroy(publicId, {
-      resource_type: 'video',
-      invalidate: true
-    });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Video delete error:', err);
-    res.status(500).json({ message: 'Delete failed' });
-  }
-});
+  <header class="navbar">
+    <div class="logo" onclick="goHome()">Nova<span>Stream</span></div>
+    <div class="search-area">
+      <input type="text" id="searchInput" placeholder="Search videos..." oninput="filterVideos()">
+      <button><i class="fas fa-search"></i></button>
+    </div>
+    <div class="nav-actions">
+      <button class="btn-create" onclick="toggleModal(true)">
+        <i class="fas fa-plus"></i>
+        <span>Create</span>
+      </button>
+      <button class="btn-logout" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
+    </div>
+  </header>
 
-/* --- IMAGE API --- */
-app.get('/api/images', authShield, async (req, res) => {
-  try {
-    const result = await cloudinary.api.resources({
-      resource_type: 'image',
-      type: 'upload',
-      prefix: 'nova-collections/',
-      max_results: 100,
-      tags: true,
-      context: true
-    });
+  <main class="container" id="homeView">
+    <div class="video-grid" id="vGrid"></div>
+  </main>
 
-    res.json(result.resources.map(img => ({
-      id: img.public_id,
-      url: img.secure_url,
-      title: img.context?.custom?.title || 'Untitled',
-      collection: img.tags?.[0] || 'General',
-      uploadedAt: img.created_at
-    })));
-  } catch (err) {
-    console.error('Error fetching images:', err);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+  <main id="playerView">
+    <div class="main-video-col">
+      <video id="mainPlayer" controls autoplay></video>
+      <div class="main-video-info">
+        <h2 id="viewTitle"></h2>
+        <div class="desc-box" id="viewDesc"></div>
+        <button class="btn-create" style="margin-top:15px;" onclick="openEditModal()">
+          <i class="fas fa-edit"></i> Edit Video
+        </button>
+      </div>
+    </div>
+    <div class="sidebar-col" id="sidebarGrid"></div>
+  </main>
 
-app.post('/api/upload-image', authShield, upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ message: 'No image uploaded' });
+  <div class="modal" id="upModal" onclick="closeModalOnOutsideClick(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <span class="close-btn" onclick="toggleModal(false)">&times;</span>
+      <h2>Upload to Vault</h2>
+      <input type="text" id="title" placeholder="Title" required>
+      <textarea id="desc" placeholder="Description..." rows="4"></textarea>
+      <input type="file" id="fIn" accept="video/*" style="margin: 10px 0;">
+      <input type="file" id="thumbIn" accept="image/*" style="margin:10px 0;">
+      <small style="color:#aaa">Optional custom thumbnail (jpg / png)</small>
+      <button class="btn-create" style="width:100%; justify-content:center;" onclick="handleUpload()">
+        Publish
+      </button>
+      
+      <div class="prog-wrap" id="prog">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px">
+          <span id="pStat">Uploading...</span>
+          <span id="pNum">0%</span>
+        </div>
+        <div class="prog-bg"><div class="prog-fill" id="pBar"></div></div>
+      </div>
+    </div>
+  </div>
 
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'nova-collections',
-      tags: [req.body.collection || 'General'],
-      context: `title=${req.body.title || 'Untitled'}`
-    });
+  <div class="modal" id="editModal" onclick="closeEditModalOnOutsideClick(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <span class="close-btn" onclick="toggleEditModal(false)">&times;</span>
+      <h2>Edit Video</h2>
+      <input type="text" id="editTitle" placeholder="Title">
+      <textarea id="editDesc" placeholder="Description..." rows="4"></textarea>
+      <input type="file" id="editThumb" accept="image/*" style="margin:10px 0;">
+      <small style="color:#aaa">Upload new thumbnail (optional)</small>
+      <button class="btn-create" style="width:100%; justify-content:center;" onclick="submitVideoEdit()">
+        Save Changes
+      </button>
+    </div>
+  </div>
 
-    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    res.json({ success: true, image: result });
-  } catch (err) {
-    console.error('Image upload error:', err);
-    res.status(500).json({ message: err.message });
-  }
-});
+  <footer class="main-footer">
+    <div class="footer-content">
+      <h3>Discover More</h3>
+      <p style="color: var(--text-muted); margin-bottom: 20px;">Explore our curated visual library and cinematic frames.</p>
+      <a href="/photos.html" class="view-photos-btn">
+        <i class="fas fa-camera-retro"></i> View Photos
+      </a>
+    </div>
+  </footer>
 
-app.delete('/api/images/*', authShield, async (req, res) => {
-  try {
-    const publicId = req.params[0];
-    await cloudinary.uploader.destroy(publicId, {
-      resource_type: 'image',
-      invalidate: true
-    });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Image delete error:', err);
-    res.status(500).json({ success: false, message: 'Delete failed' });
-  }
-});
+  <script>
+    let allVideos = [];
+    let currentEditingId = null;
 
-/* --- SERVER START --- */
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 NovaStream Running on Port ${PORT}`);
-  console.log(`🔒 Environment: ${process.env.NODE_ENV || 'development'}`);
-}).timeout = 600000; // 10 minutes for large uploads
+    async function loadVideos() {
+      try {
+        const res = await fetch('/api/videos');
+        if (res.status === 401) return window.location.href = '/login.html';
+        allVideos = await res.json();
+        renderGrid(allVideos);
+      } catch (err) { 
+        showEmptyState("Unable to load videos"); 
+      }
+    }
 
+    function renderGrid(list) {
+      const grid = document.getElementById('vGrid');
+      if (list.length === 0) {
+        showEmptyState("No videos yet. Click Create to upload!");
+        return;
+      }
+
+      grid.innerHTML = list.map(v => `
+        <div class="video-card" onclick="openTheaterMode('${v.id}')">
+          <div class="thumbnail-box" onmouseenter="previewPlay(this)" onmouseleave="previewStop(this)">
+            ${v.thumbnail 
+              ? `<img src="${v.thumbnail}" style="width:100%;height:100%;object-fit:cover;">`
+              : `<video src="${v.url}#t=0.5" muted loop preload="metadata"></video>`
+            }
+          </div>
+          <div class="video-info">
+            <div class="v-details">
+              <h3>${escapeHtml(v.title)}</h3>
+              <p>${(v.size / 1e6).toFixed(1)} MB</p>
+              <button class="del-btn" onclick="event.stopPropagation(); deleteVid('${v.id}')">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openTheaterMode(id) {
+      const video = allVideos.find(v => v.id === id);
+      if (!video) return;
+
+      currentEditingId = id;
+
+      // Set main player
+      document.getElementById('mainPlayer').src = video.url;
+      document.getElementById('viewTitle').innerText = video.title;
+      document.getElementById('viewDesc').innerText = video.description || 'No description';
+
+      // Show player view, hide grid
+      document.getElementById('homeView').style.display = 'none';
+      document.getElementById('playerView').style.display = 'grid';
+
+      // Load sidebar with other videos
+      const sidebar = document.getElementById('sidebarGrid');
+      const others = allVideos.filter(v => v.id !== id);
+      sidebar.innerHTML = others.map(v => `
+        <div class="side-card" onclick="openTheaterMode('${v.id}')">
+          <div class="side-thumb">
+            ${v.thumbnail 
+              ? `<img src="${v.thumbnail}" style="width:100%;height:100%;object-fit:cover;">`
+              : `<video src="${v.url}#t=0.5" muted preload="metadata"></video>`
+            }
+          </div>
+          <div class="side-info">
+            <h4>${escapeHtml(v.title)}</h4>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openEditModal() {
+      const video = allVideos.find(v => v.id === currentEditingId);
+      if (!video) return alert("Video not found");
+
+      document.getElementById('editTitle').value = video.title;
+      document.getElementById('editDesc').value = video.description || '';
+      document.getElementById('editThumb').value = '';
+      document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function toggleEditModal(show) {
+      document.getElementById('editModal').style.display = show ? 'flex' : 'none';
+    }
+
+    function closeEditModalOnOutsideClick(event) {
+      if (event.target.id === 'editModal') toggleEditModal(false);
+    }
+
+    async function submitVideoEdit() {
+      if (!currentEditingId) return;
+
+      const title = document.getElementById('editTitle').value.trim();
+      const desc = document.getElementById('editDesc').value.trim();
+      const thumb = document.getElementById('editThumb').files[0];
+
+      const fd = new FormData();
+      if (title) fd.append('title', title);
+      if (desc) fd.append('description', desc);
+      if (thumb) fd.append('thumbnail', thumb);
+
+      try {
+        const res = await fetch(`/api/videos/${encodeURIComponent(currentEditingId)}`, {
+          method: 'PUT',
+          body: fd,
+          credentials: 'include'
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          alert("Video updated successfully!");
+          toggleEditModal(false);
+          
+          // Update the video in allVideos array
+          const videoIndex = allVideos.findIndex(v => v.id === currentEditingId);
+          if (videoIndex !== -1) {
+            allVideos[videoIndex].title = title;
+            allVideos[videoIndex].description = desc;
+            if (data.thumbnail) {
+              allVideos[videoIndex].thumbnail = data.thumbnail;
+            }
+          }
+          
+          // Update main player view instantly
+          document.getElementById('viewTitle').innerText = title;
+          document.getElementById('viewDesc').innerText = desc || 'No description';
+          
+          // Reload to refresh thumbnails
+          loadVideos();
+        } else {
+          alert("Update failed: " + (data.message || "Unknown error"));
+        }
+      } catch (err) {
+        alert("Error updating video: " + err.message);
+      }
+    }
+
+    function previewPlay(el) {
+      const video = el.querySelector('video');
+      if (video) video.play();
+    }
+
+    function previewStop(el) {
+      const video = el.querySelector('video');
+      if (video) {
+        video.pause();
+        video.currentTime = 0;
+      }
+    }
+
+    async function handleUpload() {
+      const file = document.getElementById('fIn').files[0];
+      const thumb = document.getElementById('thumbIn').files[0];
+      const title = document.getElementById('title').value.trim();
+      const desc = document.getElementById('desc').value;
+
+      if (!file || !title) return alert("Video and title are required");
+
+      const fd = new FormData();
+      fd.append('video', file);
+      if (thumb) fd.append('thumbnail', thumb);
+      fd.append('title', title);
+      fd.append('description', desc);
+
+      document.getElementById('prog').style.display = 'block';
+      const xhr = new XMLHttpRequest();
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const p = Math.round((e.loaded / e.total) * 100);
+          document.getElementById('pBar').style.width = p + '%';
+          document.getElementById('pNum').innerText = p + '%';
+        }
+      };
+      xhr.onload = () => xhr.status === 200 ? location.reload() : alert("Upload failed");
+      xhr.open('POST', '/api/upload');
+      xhr.send(fd);
+    }
+
+    async function deleteVid(id) {
+      if (!confirm("Are you sure?")) return;
+      const res = await fetch(`/api/videos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (res.ok) loadVideos();
+    }
+
+    function goHome() {
+      document.getElementById('mainPlayer').src = '';
+      document.getElementById('playerView').style.display = 'none';
+      document.getElementById('homeView').style.display = 'block';
+      currentEditingId = null;
+    }
+
+    function toggleModal(show) {
+      document.getElementById('upModal').style.display = show ? 'flex' : 'none';
+      if (!show) {
+        document.getElementById('title').value = '';
+        document.getElementById('desc').value = '';
+        document.getElementById('fIn').value = '';
+        document.getElementById('thumbIn').value = '';
+        document.getElementById('prog').style.display = 'none';
+        document.getElementById('pBar').style.width = '0%';
+      }
+    }
+
+    function closeModalOnOutsideClick(event) {
+      if (event.target.id === 'upModal') {
+        toggleModal(false);
+      }
+    }
+
+    function filterVideos() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      if (!query) {
+        renderGrid(allVideos);
+        return;
+      }
+      const filtered = allVideos.filter(v => 
+        v.title.toLowerCase().includes(query) || 
+        (v.description && v.description.toLowerCase().includes(query))
+      );
+      renderGrid(filtered);
+    }
+
+    function showEmptyState(message) {
+      const grid = document.getElementById('vGrid');
+      grid.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-video"></i>
+          <h2>${message}</h2>
+        </div>
+      `;
+    }
+
+    function logout() {
+      window.location.href = '/api/logout';
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    loadVideos();
+  </script>
+</body>
+</html>
 
 
 
@@ -254,8 +763,8 @@ app.listen(PORT, '0.0.0.0', () => {
 // const app = express();
 // const PORT = process.env.PORT || 3000;
 
-// // Ensure local storage exists for temporary Multer processing
-// const uploadDir = './uploads';
+// // Ensure uploads folder exists
+// const uploadDir = path.join(__dirname, 'uploads');
 // if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
 // /* --- CONFIGURATION --- */
@@ -274,21 +783,25 @@ app.listen(PORT, '0.0.0.0', () => {
 
 // /* --- MULTER SETUP --- */
 // const storage = multer.diskStorage({
-//   destination: 'uploads/',
+//   destination: uploadDir,
 //   filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
 // });
-// const upload = multer({ storage, limits: { fileSize: 1024 * 1024 * 1024 } }); // 1GB limit
+// const upload = multer({ storage, limits: { fileSize: 1024 * 1024 * 1024 } }); // 1GB
 
 // /* --- MIDDLEWARE --- */
-// app.use(cors({ origin: true, credentials: true }));
+// app.use(cors({
+//   origin: true,           // Accept requests from frontend
+//   credentials: true       // Allow cookies
+// }));
 // app.use(express.json());
 // app.use(cookieParser());
-// app.use(express.static('public'));
+// app.use(express.static(path.join(__dirname, 'public')));
 
-// // Auth middleware
+// /* --- AUTH MIDDLEWARE --- */
 // const authShield = (req, res, next) => {
 //   const token = req.cookies.nova_auth;
 //   if (!token) return res.status(401).redirect('/login.html');
+
 //   try {
 //     req.user = jwt.verify(token, JWT_SECRET);
 //     next();
@@ -311,7 +824,7 @@ app.listen(PORT, '0.0.0.0', () => {
 //     });
 //     return res.json({ success: true });
 //   }
-//   res.status(401).json({ success: false, message: "Invalid credentials" });
+//   res.status(401).json({ success: false, message: 'Invalid credentials' });
 // });
 
 // app.get('/api/logout', (req, res) => {
@@ -331,8 +844,8 @@ app.listen(PORT, '0.0.0.0', () => {
 // app.get('/api/videos', authShield, async (req, res) => {
 //   try {
 //     const result = await cloudinary.api.resources({
-//       type: 'upload',           // ✅ required
-//       resource_type: 'video',   // ✅ required
+//       type: 'upload',
+//       resource_type: 'video',
 //       prefix: 'video-streaming-app/',
 //       max_results: 100,
 //       context: true
@@ -349,7 +862,7 @@ app.listen(PORT, '0.0.0.0', () => {
 //     })));
 //   } catch (err) {
 //     console.error('Error fetching videos:', err);
-//     res.status(500).json({ success: false });
+//     res.status(500).json({ success: false, message: err.message });
 //   }
 // });
 
@@ -363,12 +876,12 @@ app.listen(PORT, '0.0.0.0', () => {
 //   try {
 //     const videoFile = req.files['video']?.[0];
 //     const thumbFile = req.files['thumbnail']?.[0];
-//     if (!videoFile) return res.status(400).json({ message: "Missing video" });
+//     if (!videoFile) return res.status(400).json({ message: 'Missing video file' });
 
 //     let thumbUrl = '';
 //     if (thumbFile) {
-//       const thumbRes = await cloudinary.uploader.upload(thumbFile.path, { 
-//         folder: 'video-streaming-app/thumbs' 
+//       const thumbRes = await cloudinary.uploader.upload(thumbFile.path, {
+//         folder: 'video-streaming-app/thumbs'
 //       });
 //       thumbUrl = thumbRes.secure_url;
 //       fs.unlinkSync(thumbFile.path);
@@ -388,7 +901,7 @@ app.listen(PORT, '0.0.0.0', () => {
 //     });
 
 //   } catch (err) {
-//     console.error('Upload error:', err);
+//     console.error('Video upload error:', err);
 //     res.status(500).json({ message: err.message });
 //   }
 // });
@@ -397,23 +910,259 @@ app.listen(PORT, '0.0.0.0', () => {
 // app.delete('/api/videos/*', authShield, async (req, res) => {
 //   try {
 //     const publicId = req.params[0];
-//     await cloudinary.uploader.destroy(publicId, { 
-//       resource_type: 'video', 
-//       invalidate: true 
+//     await cloudinary.uploader.destroy(publicId, {
+//       resource_type: 'video',
+//       invalidate: true
 //     });
 //     res.json({ success: true });
 //   } catch (err) {
-//     console.error('Delete error:', err);
-//     res.status(500).json({ message: "Delete failed" });
+//     console.error('Video delete error:', err);
+//     res.status(500).json({ message: 'Delete failed' });
+//   }
+// });
+
+// /* --- IMAGE API --- */
+// app.get('/api/images', authShield, async (req, res) => {
+//   try {
+//     const result = await cloudinary.api.resources({
+//       resource_type: 'image',
+//       type: 'upload',
+//       prefix: 'nova-collections/',
+//       max_results: 100,
+//       tags: true,
+//       context: true
+//     });
+
+//     res.json(result.resources.map(img => ({
+//       id: img.public_id,
+//       url: img.secure_url,
+//       title: img.context?.custom?.title || 'Untitled',
+//       collection: img.tags?.[0] || 'General',
+//       uploadedAt: img.created_at
+//     })));
+//   } catch (err) {
+//     console.error('Error fetching images:', err);
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// });
+
+// app.post('/api/upload-image', authShield, upload.single('image'), async (req, res) => {
+//   try {
+//     if (!req.file) return res.status(400).json({ message: 'No image uploaded' });
+
+//     const result = await cloudinary.uploader.upload(req.file.path, {
+//       folder: 'nova-collections',
+//       tags: [req.body.collection || 'General'],
+//       context: `title=${req.body.title || 'Untitled'}`
+//     });
+
+//     if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+//     res.json({ success: true, image: result });
+//   } catch (err) {
+//     console.error('Image upload error:', err);
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
+// app.delete('/api/images/*', authShield, async (req, res) => {
+//   try {
+//     const publicId = req.params[0];
+//     await cloudinary.uploader.destroy(publicId, {
+//       resource_type: 'image',
+//       invalidate: true
+//     });
+//     res.json({ success: true });
+//   } catch (err) {
+//     console.error('Image delete error:', err);
+//     res.status(500).json({ success: false, message: 'Delete failed' });
 //   }
 // });
 
 // /* --- SERVER START --- */
-// const server = app.listen(PORT, () => {
+// app.listen(PORT, '0.0.0.0', () => {
 //   console.log(`🚀 NovaStream Running on Port ${PORT}`);
 //   console.log(`🔒 Environment: ${process.env.NODE_ENV || 'development'}`);
-// });
-// server.timeout = 600000; // 10 minutes for large uploads
+// }).timeout = 600000; // 10 minutes for large uploads
+
+
+
+
+// // import express from 'express';
+// // import cors from 'cors';
+// // import dotenv from 'dotenv';
+// // import { v2 as cloudinary } from 'cloudinary';
+// // import multer from 'multer';
+// // import jwt from 'jsonwebtoken';
+// // import cookieParser from 'cookie-parser';
+// // import path from 'path';
+// // import fs from 'fs';
+// // import { fileURLToPath } from 'url';
+
+// // dotenv.config();
+// // const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// // const app = express();
+// // const PORT = process.env.PORT || 3000;
+
+// // // Ensure local storage exists for temporary Multer processing
+// // const uploadDir = './uploads';
+// // if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+
+// // /* --- CONFIGURATION --- */
+// // const { ADMIN_EMAIL, ADMIN_PASSWORD, JWT_SECRET } = process.env;
+// // if (!ADMIN_EMAIL || !ADMIN_PASSWORD || !JWT_SECRET) {
+// //   console.error('❌ Missing environment variables');
+// //   process.exit(1);
+// // }
+
+// // cloudinary.config({
+// //   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+// //   api_key: process.env.CLOUDINARY_API_KEY,
+// //   api_secret: process.env.CLOUDINARY_API_SECRET,
+// //   secure: true
+// // });
+
+// // /* --- MULTER SETUP --- */
+// // const storage = multer.diskStorage({
+// //   destination: 'uploads/',
+// //   filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+// // });
+// // const upload = multer({ storage, limits: { fileSize: 1024 * 1024 * 1024 } }); // 1GB limit
+
+// // /* --- MIDDLEWARE --- */
+// // app.use(cors({ origin: true, credentials: true }));
+// // app.use(express.json());
+// // app.use(cookieParser());
+// // app.use(express.static('public'));
+
+// // // Auth middleware
+// // const authShield = (req, res, next) => {
+// //   const token = req.cookies.nova_auth;
+// //   if (!token) return res.status(401).redirect('/login.html');
+// //   try {
+// //     req.user = jwt.verify(token, JWT_SECRET);
+// //     next();
+// //   } catch {
+// //     res.clearCookie('nova_auth');
+// //     res.status(401).redirect('/login.html');
+// //   }
+// // };
+
+// // /* --- AUTH ROUTES --- */
+// // app.post('/api/login', (req, res) => {
+// //   const { email, password } = req.body;
+// //   if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+// //     const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '30d' });
+// //     res.cookie('nova_auth', token, {
+// //       httpOnly: true,
+// //       secure: process.env.NODE_ENV === 'production',
+// //       sameSite: 'strict',
+// //       maxAge: 30 * 24 * 60 * 60 * 1000
+// //     });
+// //     return res.json({ success: true });
+// //   }
+// //   res.status(401).json({ success: false, message: "Invalid credentials" });
+// // });
+
+// // app.get('/api/logout', (req, res) => {
+// //   res.clearCookie('nova_auth');
+// //   res.redirect('/login.html');
+// // });
+
+// // /* --- PROTECTED HTML ROUTES --- */
+// // app.get('/', authShield, (req, res) => {
+// //   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// // });
+// // app.get('/photos.html', authShield, (req, res) => {
+// //   res.sendFile(path.join(__dirname, 'public', 'photos.html'));
+// // });
+
+// // /* --- VIDEO API --- */
+// // app.get('/api/videos', authShield, async (req, res) => {
+// //   try {
+// //     const result = await cloudinary.api.resources({
+// //       type: 'upload',           // ✅ required
+// //       resource_type: 'video',   // ✅ required
+// //       prefix: 'video-streaming-app/',
+// //       max_results: 100,
+// //       context: true
+// //     });
+
+// //     res.json(result.resources.map(v => ({
+// //       id: v.public_id,
+// //       url: v.secure_url,
+// //       title: v.context?.custom?.title || 'Untitled',
+// //       description: v.context?.custom?.description || '',
+// //       thumbnail: v.context?.custom?.thumbnail || null,
+// //       size: v.bytes,
+// //       uploadedAt: v.created_at
+// //     })));
+// //   } catch (err) {
+// //     console.error('Error fetching videos:', err);
+// //     res.status(500).json({ success: false });
+// //   }
+// // });
+
+// // /* --- VIDEO UPLOAD --- */
+// // const multiUpload = upload.fields([
+// //   { name: 'video', maxCount: 1 },
+// //   { name: 'thumbnail', maxCount: 1 }
+// // ]);
+
+// // app.post('/api/upload', authShield, multiUpload, async (req, res) => {
+// //   try {
+// //     const videoFile = req.files['video']?.[0];
+// //     const thumbFile = req.files['thumbnail']?.[0];
+// //     if (!videoFile) return res.status(400).json({ message: "Missing video" });
+
+// //     let thumbUrl = '';
+// //     if (thumbFile) {
+// //       const thumbRes = await cloudinary.uploader.upload(thumbFile.path, { 
+// //         folder: 'video-streaming-app/thumbs' 
+// //       });
+// //       thumbUrl = thumbRes.secure_url;
+// //       fs.unlinkSync(thumbFile.path);
+// //     }
+
+// //     cloudinary.uploader.upload_large(videoFile.path, {
+// //       resource_type: 'video',
+// //       folder: 'video-streaming-app',
+// //       context: `title=${req.body.title || 'Untitled'}|description=${req.body.description || ''}|thumbnail=${thumbUrl}`
+// //     }, (error, result) => {
+// //       fs.unlinkSync(videoFile.path);
+// //       if (error) {
+// //         console.error('Cloudinary upload error:', error);
+// //         return res.status(500).json({ message: error.message });
+// //       }
+// //       res.json({ success: true, video: result });
+// //     });
+
+// //   } catch (err) {
+// //     console.error('Upload error:', err);
+// //     res.status(500).json({ message: err.message });
+// //   }
+// // });
+
+// // /* --- VIDEO DELETE --- */
+// // app.delete('/api/videos/*', authShield, async (req, res) => {
+// //   try {
+// //     const publicId = req.params[0];
+// //     await cloudinary.uploader.destroy(publicId, { 
+// //       resource_type: 'video', 
+// //       invalidate: true 
+// //     });
+// //     res.json({ success: true });
+// //   } catch (err) {
+// //     console.error('Delete error:', err);
+// //     res.status(500).json({ message: "Delete failed" });
+// //   }
+// // });
+
+// // /* --- SERVER START --- */
+// // const server = app.listen(PORT, () => {
+// //   console.log(`🚀 NovaStream Running on Port ${PORT}`);
+// //   console.log(`🔒 Environment: ${process.env.NODE_ENV || 'development'}`);
+// // });
+// // server.timeout = 600000; // 10 minutes for large uploads
 
 
 
