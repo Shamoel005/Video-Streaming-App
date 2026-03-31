@@ -17,6 +17,1105 @@
       --border: #333333;
     }
 
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding-top: 70px;
+      overflow-x: hidden;
+    }
+
+    /* --- NAVBAR --- */
+    .navbar {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      height: 60px;
+      background: var(--header-bg);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+    }
+
+    .logo { font-size: 22px; font-weight: 900; cursor: pointer; letter-spacing: -1px; user-select: none; }
+    .logo span { color: var(--pink); text-shadow: 0 0 10px var(--pink); }
+
+    .search-area { flex: 0 1 500px; display: flex; }
+    .search-area input {
+      width: 100%;
+      background: #121212;
+      border: 1px solid var(--border);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 40px 0 0 40px;
+      outline: none;
+      font-size: 15px;
+      transition: border-color 0.3s;
+    }
+    .search-area input:focus { border-color: var(--pink); }
+    .search-area button {
+      background: #222;
+      border: 1px solid var(--border);
+      border-left: none;
+      color: white;
+      padding: 0 20px;
+      border-radius: 0 40px 40px 0;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .search-area button:hover { background: #333; }
+
+    .nav-actions { display: flex; align-items: center; gap: 12px; }
+
+    .btn-create {
+      background: var(--pink);
+      color: black;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .btn-create:hover { transform: scale(1.05); box-shadow: 0 0 15px var(--pink); }
+
+    .btn-logout {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 15px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: color 0.3s, border-color 0.3s;
+    }
+    .btn-logout:hover { color: white; border-color: #ff4d4d; }
+
+    /* --- SORT / FILTER BAR --- */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 24px 20px;
+      max-width: 1800px;
+      margin: 0 auto;
+      flex-wrap: wrap;
+    }
+    .filter-bar span { font-size: 13px; color: var(--text-muted); }
+    .sort-btn {
+      background: #1e1e1e;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .sort-btn:hover, .sort-btn.active {
+      border-color: var(--pink);
+      color: var(--pink);
+    }
+    .filter-bar .liked-filter {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e1e1e;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter-bar .liked-filter:hover, .filter-bar .liked-filter.active {
+      border-color: #ff4d4d;
+      color: #ff6b6b;
+    }
+
+    /* --- HOME VIEW --- */
+    .container { padding: 24px; padding-top: 8px; max-width: 1800px; margin: 0 auto; }
+    .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 30px 20px; }
+
+    .video-card { cursor: pointer; border-radius: 12px; transition: transform 0.3s; }
+    .video-card:hover { transform: translateY(-4px); }
+
+    .thumbnail-box {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid transparent;
+      transition: border-color 0.3s;
+    }
+    .video-card:hover .thumbnail-box { border-color: var(--pink); }
+    .thumbnail-box video, .thumbnail-box img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Duration badge */
+    .duration-badge {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    /* Progress bar on thumbnail */
+    .watch-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: var(--pink);
+      border-radius: 0 2px 0 0;
+      transition: width 0.3s;
+    }
+
+    .video-info { display: flex; margin-top: 12px; gap: 12px; }
+    .v-details { flex: 1; }
+    .v-details h3 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 600; }
+    .v-details p { margin: 6px 0 0; color: var(--text-muted); font-size: 13px; }
+
+    .card-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text-muted);
+      padding: 4px;
+      transition: color 0.2s, transform 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .icon-btn:hover { transform: scale(1.15); }
+    .icon-btn.liked { color: #ff4d4d; }
+    .icon-btn.bookmarked { color: var(--pink); }
+    .del-btn {
+      color: #ff4d4d; background: none; border: none; font-size: 12px; cursor: pointer;
+      padding: 0; opacity: 0.6; transition: opacity 0.3s; margin-left: auto;
+    }
+    .del-btn:hover { opacity: 1; text-decoration: underline; }
+
+    /* --- THEATER MODE --- */
+    #playerView {
+      display: none;
+      padding: 24px 60px;
+      max-width: 1600px;
+      margin: 0 auto;
+      grid-template-columns: 1fr 400px;
+      gap: 24px;
+    }
+
+    .main-video-col video {
+      width: 100%;
+      aspect-ratio: 16/9;
+      border-radius: 12px;
+      background: #000;
+    }
+
+    .main-video-info h2 { font-size: 24px; margin: 20px 0 10px; font-weight: 600; }
+    .desc-box {
+      background: #272727;
+      padding: 15px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+
+    .player-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 14px 0;
+      flex-wrap: wrap;
+    }
+    .action-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: #1e1e1e;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .action-pill:hover { border-color: #555; color: white; }
+    .action-pill.active-like { border-color: #ff4d4d; color: #ff6b6b; }
+    .action-pill.active-bookmark { border-color: var(--pink); color: var(--pink); }
+    .action-pill.active-autoplay { border-color: var(--pink); color: var(--pink); }
+
+    /* Keyboard shortcut hint */
+    .kb-hint {
+      font-size: 12px;
+      color: #555;
+      margin-top: 8px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .kb-hint kbd {
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    .sidebar-col { display: flex; flex-direction: column; gap: 16px; }
+    .sidebar-col h4 { font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .side-card { display: flex; gap: 12px; cursor: pointer; transition: transform 0.2s; position: relative; }
+    .side-card:hover { transform: translateX(4px); }
+    .side-thumb { width: 160px; height: 90px; border-radius: 8px; overflow: hidden; background: #000; flex-shrink: 0; position: relative; }
+    .side-thumb video, .side-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .side-info h4 { margin: 0; font-size: 14px; line-height: 1.3; color: #fff; font-weight: 500; }
+    .side-info p { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .up-next-badge {
+      font-size: 11px;
+      background: var(--pink);
+      color: black;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-weight: bold;
+      margin-bottom: 4px;
+      display: inline-block;
+    }
+
+    /* --- MODALS --- */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+    .modal-content {
+      background: #1e1e1e;
+      width: 95%;
+      max-width: 500px;
+      padding: 30px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+    .modal-content h2 { margin-top: 0; color: var(--pink); }
+    .close-btn {
+      position: absolute; top: 20px; right: 25px; font-size: 30px;
+      cursor: pointer; color: var(--text-muted); transition: color 0.3s;
+    }
+    .close-btn:hover { color: white; }
+    .modal-content input[type="text"], .modal-content textarea {
+      width: 100%; background: #000; border: 1px solid #333; color: white;
+      padding: 12px; border-radius: 8px; margin: 10px 0;
+      font-family: inherit; font-size: 14px;
+    }
+    .modal-content input[type="text"]:focus, .modal-content textarea:focus {
+      outline: none; border-color: var(--pink);
+    }
+
+    /* --- PROGRESS BAR --- */
+    .prog-wrap { display: none; margin-top: 20px; }
+    .prog-bg { background: #333; height: 8px; border-radius: 10px; overflow: hidden; }
+    .prog-fill { height: 100%; background: var(--pink); width: 0%; transition: width 0.3s; box-shadow: 0 0 10px var(--pink); }
+
+    /* --- TOAST --- */
+    #toastContainer {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      pointer-events: none;
+    }
+    .toast {
+      background: #1e1e1e;
+      border: 1px solid #444;
+      color: white;
+      padding: 12px 22px;
+      border-radius: 30px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success i { color: #4caf50; }
+    .toast.info i { color: var(--pink); }
+    .toast.error i { color: #ff4d4d; }
+
+    /* --- KEYBOARD OVERLAY --- */
+    #kbOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+    #kbOverlay.open { display: flex; }
+    .kb-modal {
+      background: #1e1e1e;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 30px;
+      min-width: 340px;
+    }
+    .kb-modal h3 { color: var(--pink); margin-bottom: 20px; }
+    .kb-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #2a2a2a; font-size: 14px; }
+    .kb-row:last-child { border-bottom: none; }
+    .kb-row span { color: var(--text-muted); }
+    .kb-row kbd { background: #333; border: 1px solid #555; border-radius: 5px; padding: 3px 9px; font-family: monospace; font-size: 12px; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); grid-column: 1 / -1; }
+    .empty-state i { font-size: 64px; margin-bottom: 20px; opacity: 0.3; display: block; }
+
+    @media (max-width: 1000px) {
+      #playerView { grid-template-columns: 1fr; padding: 15px; }
+      .navbar { padding: 0 15px; }
+      .search-area { flex: 1; max-width: 300px; }
+    }
+    @media (max-width: 600px) {
+      .logo { font-size: 18px; }
+      .search-area { display: none; }
+      .btn-create span { display: none; }
+    }
+
+    .main-footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 20px;
+      margin-top: 60px;
+      text-align: center;
+      background: #0a0a0a;
+    }
+    .footer-content h3 { color: var(--pink); margin-bottom: 15px; }
+    .view-photos-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: #1e1e1e; color: white; padding: 12px 25px;
+      border-radius: 30px; text-decoration: none;
+      border: 1px solid var(--pink); transition: 0.3s; font-weight: bold;
+    }
+    .view-photos-btn:hover { background: var(--pink); color: black; box-shadow: 0 0 20px var(--pink-glow); }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <div class="logo" onclick="goHome()">Nova<span>Stream</span></div>
+    <div class="search-area">
+      <input type="text" id="searchInput" placeholder="Search videos..." oninput="filterVideos()">
+      <button><i class="fas fa-search"></i></button>
+    </div>
+    <div class="nav-actions">
+      <button class="btn-create" onclick="toggleModal(true)">
+        <i class="fas fa-plus"></i>
+        <span>Create</span>
+      </button>
+      <button class="btn-logout" title="Keyboard shortcuts (?)" onclick="toggleKbOverlay()">
+        <i class="fas fa-keyboard"></i>
+      </button>
+      <button class="btn-logout" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Sort / Filter Bar -->
+  <div class="filter-bar" id="filterBar">
+    <span>Sort:</span>
+    <button class="sort-btn active" data-sort="default" onclick="setSort(this, 'default')">Latest</button>
+    <button class="sort-btn" data-sort="size" onclick="setSort(this, 'size')">Largest</button>
+    <button class="sort-btn" data-sort="alpha" onclick="setSort(this, 'alpha')">A–Z</button>
+    <button class="sort-btn liked-filter" id="likedFilterBtn" onclick="toggleLikedFilter()">
+      <i class="fas fa-heart"></i> Liked only
+    </button>
+  </div>
+
+  <main class="container" id="homeView">
+    <div class="video-grid" id="vGrid"></div>
+  </main>
+
+  <main id="playerView">
+    <div class="main-video-col">
+      <video id="mainPlayer" controls autoplay></video>
+
+      <div class="player-actions">
+        <button class="action-pill" id="likeBtn" onclick="toggleLikePlayer()">
+          <i class="fas fa-heart"></i> <span id="likeLabel">Like</span>
+        </button>
+        <button class="action-pill" id="bookmarkBtn" onclick="toggleBookmarkPlayer()">
+          <i class="fas fa-bookmark"></i> <span id="bookmarkLabel">Save</span>
+        </button>
+        <button class="action-pill" id="copyLinkBtn" onclick="copyVideoLink()">
+          <i class="fas fa-link"></i> Copy link
+        </button>
+        <button class="action-pill" id="autPlayBtn" onclick="toggleAutoplay()">
+          <i class="fas fa-play-circle"></i> <span id="autoplayLabel">Autoplay: Off</span>
+        </button>
+        <button class="action-pill" onclick="openEditModal()">
+          <i class="fas fa-edit"></i> Edit
+        </button>
+      </div>
+
+      <div class="kb-hint">
+        <span><kbd>Space</kbd> Play/Pause</span>
+        <span><kbd>F</kbd> Fullscreen</span>
+        <span><kbd>M</kbd> Mute</span>
+        <span><kbd>←</kbd><kbd>→</kbd> ±10s</span>
+        <span><kbd>↑</kbd><kbd>↓</kbd> Volume</span>
+        <span><kbd>Esc</kbd> Back</span>
+      </div>
+
+      <div class="main-video-info">
+        <h2 id="viewTitle"></h2>
+        <div class="desc-box" id="viewDesc"></div>
+      </div>
+    </div>
+    <div class="sidebar-col">
+      <h4>Up next</h4>
+      <div id="sidebarGrid"></div>
+    </div>
+  </main>
+
+  <!-- Upload Modal -->
+  <div class="modal" id="upModal" onclick="closeModalOnOutsideClick(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <span class="close-btn" onclick="toggleModal(false)">&times;</span>
+      <h2>Upload to Vault</h2>
+      <input type="text" id="title" placeholder="Title" required>
+      <textarea id="desc" placeholder="Description..." rows="4"></textarea>
+      <input type="file" id="fIn" accept="video/*" style="margin: 10px 0;">
+      <input type="file" id="thumbIn" accept="image/*" style="margin:10px 0;">
+      <small style="color:#aaa">Optional custom thumbnail (jpg / png)</small>
+      <button class="btn-create" style="width:100%; justify-content:center; margin-top:14px;" onclick="handleUpload()">
+        Publish
+      </button>
+      <div class="prog-wrap" id="prog">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px">
+          <span id="pStat">Uploading...</span>
+          <span id="pNum">0%</span>
+        </div>
+        <div class="prog-bg"><div class="prog-fill" id="pBar"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal" id="editModal" onclick="closeEditModalOnOutsideClick(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <span class="close-btn" onclick="toggleEditModal(false)">&times;</span>
+      <h2>Edit Video</h2>
+      <input type="text" id="editTitle" placeholder="Title">
+      <textarea id="editDesc" placeholder="Description..." rows="4"></textarea>
+      <input type="file" id="editThumb" accept="image/*" style="margin:10px 0;">
+      <small style="color:#aaa">Upload new thumbnail (optional)</small>
+      <button class="btn-create" style="width:100%; justify-content:center; margin-top:14px;" onclick="submitVideoEdit()">
+        Save Changes
+      </button>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts Overlay -->
+  <div id="kbOverlay" onclick="toggleKbOverlay()">
+    <div class="kb-modal" onclick="event.stopPropagation()">
+      <h3><i class="fas fa-keyboard"></i> Keyboard Shortcuts</h3>
+      <div class="kb-row"><span>Play / Pause</span><kbd>Space</kbd></div>
+      <div class="kb-row"><span>Toggle fullscreen</span><kbd>F</kbd></div>
+      <div class="kb-row"><span>Mute / Unmute</span><kbd>M</kbd></div>
+      <div class="kb-row"><span>Seek back 10s</span><kbd>←</kbd></div>
+      <div class="kb-row"><span>Seek forward 10s</span><kbd>→</kbd></div>
+      <div class="kb-row"><span>Volume up</span><kbd>↑</kbd></div>
+      <div class="kb-row"><span>Volume down</span><kbd>↓</kbd></div>
+      <div class="kb-row"><span>Back to home</span><kbd>Esc</kbd></div>
+      <div class="kb-row"><span>This dialog</span><kbd>?</kbd></div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer"></div>
+
+  <footer class="main-footer">
+    <div class="footer-content">
+      <h3>Discover More</h3>
+      <p style="color: var(--text-muted); margin-bottom: 20px;">Explore our curated visual library and cinematic frames.</p>
+      <a href="/photos.html" class="view-photos-btn">
+        <i class="fas fa-camera-retro"></i> View Photos
+      </a>
+    </div>
+  </footer>
+
+  <script>
+    let allVideos = [];
+    let currentEditingId = null;
+    let currentSort = 'default';
+    let showLikedOnly = false;
+    let autoplayEnabled = false;
+    let progressSaveTimer = null;
+
+    /* ── Local-storage helpers ───────────────────────────── */
+    const LS = {
+      likes:     () => JSON.parse(localStorage.getItem('ns_likes')     || '{}'),
+      bookmarks: () => JSON.parse(localStorage.getItem('ns_bookmarks') || '{}'),
+      progress:  () => JSON.parse(localStorage.getItem('ns_progress')  || '{}'),
+
+      toggleLike(id) {
+        const d = this.likes();
+        d[id] ? delete d[id] : d[id] = true;
+        localStorage.setItem('ns_likes', JSON.stringify(d));
+        return !!d[id];
+      },
+      toggleBookmark(id) {
+        const d = this.bookmarks();
+        d[id] ? delete d[id] : d[id] = true;
+        localStorage.setItem('ns_bookmarks', JSON.stringify(d));
+        return !!d[id];
+      },
+      saveProgress(id, time, duration) {
+        if (!duration) return;
+        const d = this.progress();
+        const pct = time / duration;
+        if (pct > 0.95) { delete d[id]; } // treated as watched
+        else { d[id] = { time, pct }; }
+        localStorage.setItem('ns_progress', JSON.stringify(d));
+      },
+      getProgress(id) {
+        return this.progress()[id] || null;
+      }
+    };
+
+    /* ── Toast ───────────────────────────────────────────── */
+    function showToast(msg, type = 'info', icon = 'fa-circle-check') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = `<i class="fas ${icon}"></i> ${msg}`;
+      c.appendChild(t);
+      requestAnimationFrame(() => { requestAnimationFrame(() => t.classList.add('show')); });
+      setTimeout(() => {
+        t.classList.remove('show');
+        setTimeout(() => t.remove(), 400);
+      }, 2800);
+    }
+
+    /* ── Data loading ────────────────────────────────────── */
+    async function loadVideos() {
+      try {
+        const res = await fetch('/api/videos');
+        if (res.status === 401) return window.location.href = '/login.html';
+        allVideos = await res.json();
+        renderGrid(getSortedFiltered());
+        checkDeepLink();
+      } catch (err) {
+        showEmptyState("Unable to load videos");
+      }
+    }
+
+    function checkDeepLink() {
+      const params = new URLSearchParams(window.location.search);
+      const vid = params.get('v');
+      if (vid && allVideos.find(v => v.id === vid)) openTheaterMode(vid);
+    }
+
+    /* ── Sort & filter ───────────────────────────────────── */
+    function getSortedFiltered() {
+      let list = [...allVideos];
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      if (query) list = list.filter(v =>
+        v.title.toLowerCase().includes(query) ||
+        (v.description && v.description.toLowerCase().includes(query))
+      );
+      if (showLikedOnly) {
+        const likes = LS.likes();
+        list = list.filter(v => likes[v.id]);
+      }
+      if (currentSort === 'size') list.sort((a, b) => b.size - a.size);
+      else if (currentSort === 'alpha') list.sort((a, b) => a.title.localeCompare(b.title));
+      return list;
+    }
+
+    function setSort(btn, sort) {
+      document.querySelectorAll('.sort-btn[data-sort]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentSort = sort;
+      renderGrid(getSortedFiltered());
+    }
+
+    function toggleLikedFilter() {
+      showLikedOnly = !showLikedOnly;
+      document.getElementById('likedFilterBtn').classList.toggle('active', showLikedOnly);
+      renderGrid(getSortedFiltered());
+    }
+
+    function filterVideos() { renderGrid(getSortedFiltered()); }
+
+    /* ── Grid render ─────────────────────────────────────── */
+    function renderGrid(list) {
+      const grid = document.getElementById('vGrid');
+      if (list.length === 0) {
+        showEmptyState(showLikedOnly ? "No liked videos yet." : "No videos yet. Click Create to upload!");
+        return;
+      }
+      const likes = LS.likes();
+      const bookmarks = LS.bookmarks();
+      const progress = LS.progress();
+
+      grid.innerHTML = list.map(v => {
+        const prog = progress[v.id];
+        const progBar = prog ? `<div class="watch-bar" style="width:${Math.round(prog.pct * 100)}%"></div>` : '';
+        const likedCls = likes[v.id] ? 'liked' : '';
+        const bookCls = bookmarks[v.id] ? 'bookmarked' : '';
+        return `
+          <div class="video-card" onclick="openTheaterMode('${v.id}')">
+            <div class="thumbnail-box" onmouseenter="previewPlay(this)" onmouseleave="previewStop(this)">
+              ${v.thumbnail
+                ? `<img src="${v.thumbnail}" style="width:100%;height:100%;object-fit:cover;">`
+                : `<video src="${v.url}#t=0.5" muted loop preload="metadata" onloadedmetadata="showDuration(this)"></video>`
+              }
+              <span class="duration-badge" id="dur-${v.id}"></span>
+              ${progBar}
+            </div>
+            <div class="video-info">
+              <div class="v-details">
+                <h3>${escapeHtml(v.title)}</h3>
+                <p>${(v.size / 1e6).toFixed(1)} MB</p>
+                <div class="card-actions">
+                  <button class="icon-btn ${likedCls}" title="Like" onclick="event.stopPropagation(); toggleLikeCard('${v.id}', this)">
+                    <i class="fas fa-heart"></i>
+                  </button>
+                  <button class="icon-btn ${bookCls}" title="Save" onclick="event.stopPropagation(); toggleBookmarkCard('${v.id}', this)">
+                    <i class="fas fa-bookmark"></i>
+                  </button>
+                  <button class="del-btn" onclick="event.stopPropagation(); deleteVid('${v.id}')">
+                    <i class="fas fa-trash"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+
+      // Load durations for cards without thumbnails
+      list.forEach(v => {
+        if (!v.thumbnail) {
+          const video = document.querySelector(`#dur-${v.id}`)?.closest('.thumbnail-box')?.querySelector('video');
+          if (video) {
+            video.addEventListener('loadedmetadata', () => {
+              document.getElementById(`dur-${v.id}`).textContent = formatDuration(video.duration);
+            });
+          }
+        }
+      });
+    }
+
+    function showDuration(videoEl) {
+      const badge = videoEl.closest('.thumbnail-box').querySelector('.duration-badge');
+      if (badge) badge.textContent = formatDuration(videoEl.duration);
+    }
+
+    function formatDuration(secs) {
+      if (!secs || isNaN(secs)) return '';
+      const m = Math.floor(secs / 60);
+      const s = Math.floor(secs % 60);
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    /* ── Card like / bookmark ────────────────────────────── */
+    function toggleLikeCard(id, btn) {
+      const on = LS.toggleLike(id);
+      btn.classList.toggle('liked', on);
+      showToast(on ? 'Added to liked' : 'Removed from liked', on ? 'success' : 'info', on ? 'fa-heart' : 'fa-heart-broken');
+      if (showLikedOnly) renderGrid(getSortedFiltered());
+    }
+
+    function toggleBookmarkCard(id, btn) {
+      const on = LS.toggleBookmark(id);
+      btn.classList.toggle('bookmarked', on);
+      showToast(on ? 'Saved to bookmarks' : 'Removed from bookmarks', 'info', 'fa-bookmark');
+    }
+
+    /* ── Theater mode ────────────────────────────────────── */
+    function openTheaterMode(id) {
+      const video = allVideos.find(v => v.id === id);
+      if (!video) return;
+      currentEditingId = id;
+
+      const player = document.getElementById('mainPlayer');
+      player.src = video.url;
+
+      // Resume from saved position
+      const saved = LS.getProgress(id);
+      if (saved && saved.pct < 0.95) {
+        player.addEventListener('loadedmetadata', () => {
+          player.currentTime = saved.time;
+        }, { once: true });
+      }
+
+      document.getElementById('viewTitle').innerText = video.title;
+      document.getElementById('viewDesc').innerText = video.description || 'No description';
+
+      // Update like / bookmark pills
+      updatePlayerPills(id);
+
+      // Show / hide
+      document.getElementById('homeView').style.display = 'none';
+      document.getElementById('filterBar').style.display = 'none';
+      document.getElementById('playerView').style.display = 'grid';
+
+      // Sidebar
+      renderSidebar(id);
+
+      // Update URL without reload
+      window.history.pushState({}, '', `?v=${id}`);
+
+      // Save progress every 5s
+      clearInterval(progressSaveTimer);
+      progressSaveTimer = setInterval(() => {
+        if (!player.paused && player.duration) {
+          LS.saveProgress(id, player.currentTime, player.duration);
+        }
+      }, 5000);
+
+      // Autoplay next
+      player.onended = () => {
+        LS.saveProgress(id, player.duration, player.duration); // mark as watched
+        if (autoplayEnabled) playNext(id);
+      };
+    }
+
+    function renderSidebar(currentId) {
+      const sidebar = document.getElementById('sidebarGrid');
+      const others = allVideos.filter(v => v.id !== currentId);
+      if (others.length === 0) { sidebar.innerHTML = '<p style="color:#555;font-size:13px;">No other videos</p>'; return; }
+
+      sidebar.innerHTML = others.map((v, i) => `
+        <div class="side-card" onclick="openTheaterMode('${v.id}')">
+          <div class="side-thumb">
+            ${v.thumbnail
+              ? `<img src="${v.thumbnail}" style="width:100%;height:100%;object-fit:cover;">`
+              : `<video src="${v.url}#t=0.5" muted preload="metadata"></video>`
+            }
+          </div>
+          <div class="side-info">
+            ${i === 0 && autoplayEnabled ? '<span class="up-next-badge">Up next</span>' : ''}
+            <h4>${escapeHtml(v.title)}</h4>
+            <p>${(v.size / 1e6).toFixed(1)} MB</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function playNext(currentId) {
+      const others = allVideos.filter(v => v.id !== currentId);
+      if (others.length > 0) {
+        showToast('Playing next video…', 'info', 'fa-play-circle');
+        openTheaterMode(others[0].id);
+      }
+    }
+
+    function updatePlayerPills(id) {
+      const likes = LS.likes();
+      const bookmarks = LS.bookmarks();
+
+      const likeBtn = document.getElementById('likeBtn');
+      const bookmarkBtn = document.getElementById('bookmarkBtn');
+
+      likeBtn.classList.toggle('active-like', !!likes[id]);
+      document.getElementById('likeLabel').textContent = likes[id] ? 'Liked' : 'Like';
+
+      bookmarkBtn.classList.toggle('active-bookmark', !!bookmarks[id]);
+      document.getElementById('bookmarkLabel').textContent = bookmarks[id] ? 'Saved' : 'Save';
+
+      const autoBtn = document.getElementById('autPlayBtn');
+      autoBtn.classList.toggle('active-autoplay', autoplayEnabled);
+      document.getElementById('autoplayLabel').textContent = autoplayEnabled ? 'Autoplay: On' : 'Autoplay: Off';
+    }
+
+    /* ── Player action pills ─────────────────────────────── */
+    function toggleLikePlayer() {
+      if (!currentEditingId) return;
+      const on = LS.toggleLike(currentEditingId);
+      updatePlayerPills(currentEditingId);
+      showToast(on ? 'Added to liked' : 'Removed from liked', on ? 'success' : 'info', on ? 'fa-heart' : 'fa-heart-broken');
+    }
+
+    function toggleBookmarkPlayer() {
+      if (!currentEditingId) return;
+      const on = LS.toggleBookmark(currentEditingId);
+      updatePlayerPills(currentEditingId);
+      showToast(on ? 'Saved to bookmarks' : 'Removed from bookmarks', 'info', 'fa-bookmark');
+    }
+
+    function copyVideoLink() {
+      const url = `${location.origin}${location.pathname}?v=${currentEditingId}`;
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Link copied to clipboard!', 'success', 'fa-link');
+      });
+    }
+
+    function toggleAutoplay() {
+      autoplayEnabled = !autoplayEnabled;
+      document.getElementById('autPlayBtn').classList.toggle('active-autoplay', autoplayEnabled);
+      document.getElementById('autoplayLabel').textContent = autoplayEnabled ? 'Autoplay: On' : 'Autoplay: Off';
+      if (currentEditingId) renderSidebar(currentEditingId);
+      showToast(`Autoplay ${autoplayEnabled ? 'enabled' : 'disabled'}`, 'info', 'fa-play-circle');
+    }
+
+    /* ── Keyboard shortcuts ──────────────────────────────── */
+    document.addEventListener('keydown', e => {
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      const player = document.getElementById('mainPlayer');
+      const inPlayer = document.getElementById('playerView').style.display === 'grid';
+
+      if (e.key === '?') { toggleKbOverlay(); return; }
+      if (e.key === 'Escape') {
+        if (document.getElementById('kbOverlay').classList.contains('open')) { toggleKbOverlay(); return; }
+        if (inPlayer) { goHome(); return; }
+      }
+      if (!inPlayer) return;
+
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          player.paused ? player.play() : player.pause();
+          break;
+        case 'f': case 'F':
+          player.requestFullscreen?.();
+          break;
+        case 'm': case 'M':
+          player.muted = !player.muted;
+          showToast(player.muted ? 'Muted' : 'Unmuted', 'info', player.muted ? 'fa-volume-mute' : 'fa-volume-up');
+          break;
+        case 'ArrowLeft':
+          player.currentTime = Math.max(0, player.currentTime - 10);
+          showToast('-10s', 'info', 'fa-backward');
+          break;
+        case 'ArrowRight':
+          player.currentTime = Math.min(player.duration, player.currentTime + 10);
+          showToast('+10s', 'info', 'fa-forward');
+          break;
+        case 'ArrowUp':
+          player.volume = Math.min(1, player.volume + 0.1);
+          showToast(`Volume ${Math.round(player.volume * 100)}%`, 'info', 'fa-volume-up');
+          break;
+        case 'ArrowDown':
+          player.volume = Math.max(0, player.volume - 0.1);
+          showToast(`Volume ${Math.round(player.volume * 100)}%`, 'info', 'fa-volume-down');
+          break;
+      }
+    });
+
+    function toggleKbOverlay() {
+      document.getElementById('kbOverlay').classList.toggle('open');
+    }
+
+    /* ── Preview hover ───────────────────────────────────── */
+    function previewPlay(el) { const v = el.querySelector('video'); if (v) v.play(); }
+    function previewStop(el) { const v = el.querySelector('video'); if (v) { v.pause(); v.currentTime = 0; } }
+
+    /* ── Upload ──────────────────────────────────────────── */
+    async function handleUpload() {
+      const file  = document.getElementById('fIn').files[0];
+      const thumb = document.getElementById('thumbIn').files[0];
+      const title = document.getElementById('title').value.trim();
+      const desc  = document.getElementById('desc').value;
+      if (!file || !title) return showToast('Video and title are required', 'error', 'fa-circle-exclamation');
+
+      const fd = new FormData();
+      fd.append('video', file);
+      if (thumb) fd.append('thumbnail', thumb);
+      fd.append('title', title);
+      fd.append('description', desc);
+
+      document.getElementById('prog').style.display = 'block';
+      const xhr = new XMLHttpRequest();
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const p = Math.round((e.loaded / e.total) * 100);
+          document.getElementById('pBar').style.width = p + '%';
+          document.getElementById('pNum').innerText = p + '%';
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          showToast('Video published!', 'success', 'fa-circle-check');
+          setTimeout(() => location.reload(), 1200);
+        } else {
+          showToast('Upload failed', 'error', 'fa-circle-exclamation');
+        }
+      };
+      xhr.open('POST', '/api/upload');
+      xhr.send(fd);
+    }
+
+    /* ── Delete ──────────────────────────────────────────── */
+    async function deleteVid(id) {
+      if (!confirm("Are you sure?")) return;
+      const res = await fetch(`/api/videos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToast('Video deleted', 'info', 'fa-trash');
+        loadVideos();
+      } else {
+        showToast('Delete failed', 'error', 'fa-circle-exclamation');
+      }
+    }
+
+    /* ── Edit modal ──────────────────────────────────────── */
+    function openEditModal() {
+      const video = allVideos.find(v => v.id === currentEditingId);
+      if (!video) return showToast("Video not found", 'error', 'fa-circle-exclamation');
+      document.getElementById('editTitle').value = video.title;
+      document.getElementById('editDesc').value = video.description || '';
+      document.getElementById('editThumb').value = '';
+      document.getElementById('editModal').style.display = 'flex';
+    }
+    function toggleEditModal(show) { document.getElementById('editModal').style.display = show ? 'flex' : 'none'; }
+    function closeEditModalOnOutsideClick(e) { if (e.target.id === 'editModal') toggleEditModal(false); }
+
+    async function submitVideoEdit() {
+      if (!currentEditingId) return;
+      const title = document.getElementById('editTitle').value.trim();
+      const desc  = document.getElementById('editDesc').value.trim();
+      const thumb = document.getElementById('editThumb').files[0];
+
+      const fd = new FormData();
+      if (title) fd.append('title', title);
+      if (desc)  fd.append('description', desc);
+      if (thumb) fd.append('thumbnail', thumb);
+
+      try {
+        const res  = await fetch(`/api/videos/${encodeURIComponent(currentEditingId)}`, { method: 'PUT', body: fd, credentials: 'include' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Video updated!', 'success', 'fa-circle-check');
+          toggleEditModal(false);
+          const idx = allVideos.findIndex(v => v.id === currentEditingId);
+          if (idx !== -1) {
+            allVideos[idx].title = title;
+            allVideos[idx].description = desc;
+            if (data.thumbnail) allVideos[idx].thumbnail = data.thumbnail;
+          }
+          document.getElementById('viewTitle').innerText = title;
+          document.getElementById('viewDesc').innerText = desc || 'No description';
+          loadVideos();
+        } else {
+          showToast("Update failed: " + (data.message || "Unknown error"), 'error', 'fa-circle-exclamation');
+        }
+      } catch (err) {
+        showToast("Error: " + err.message, 'error', 'fa-circle-exclamation');
+      }
+    }
+
+    /* ── Home / navigation ───────────────────────────────── */
+    function goHome() {
+      clearInterval(progressSaveTimer);
+      document.getElementById('mainPlayer').src = '';
+      document.getElementById('playerView').style.display = 'none';
+      document.getElementById('homeView').style.display = 'block';
+      document.getElementById('filterBar').style.display = 'flex';
+      currentEditingId = null;
+      window.history.pushState({}, '', location.pathname);
+      renderGrid(getSortedFiltered()); // refresh progress bars
+    }
+
+    window.addEventListener('popstate', () => {
+      const params = new URLSearchParams(window.location.search);
+      const vid = params.get('v');
+      if (vid) { openTheaterMode(vid); }
+      else { goHome(); }
+    });
+
+    function toggleModal(show) {
+      document.getElementById('upModal').style.display = show ? 'flex' : 'none';
+      if (!show) {
+        ['title','desc','fIn','thumbIn'].forEach(id => { document.getElementById(id).value = ''; });
+        document.getElementById('prog').style.display = 'none';
+        document.getElementById('pBar').style.width = '0%';
+      }
+    }
+    function closeModalOnOutsideClick(e) { if (e.target.id === 'upModal') toggleModal(false); }
+
+    function showEmptyState(msg) {
+      document.getElementById('vGrid').innerHTML = `<div class="empty-state"><i class="fas fa-video"></i><h2>${msg}</h2></div>`;
+    }
+
+    function logout() { window.location.href = '/api/logout'; }
+
+    function escapeHtml(text) {
+      const d = document.createElement('div');
+      d.textContent = text;
+      return d.innerHTML;
+    }
+
+    loadVideos();
+  </script>
+</body>
+</html>
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NovaStream | Cinematic Video Vault</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --pink: #ff7eb9;
+      --pink-glow: rgba(255, 126, 185, 0.3);
+      --bg: #0f0f0f;
+      --header-bg: #0f0f0f;
+      --card-bg: #1e1e1e;
+      --text: #ffffff;
+      --text-muted: #aaaaaa;
+      --border: #333333;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -745,664 +1844,4 @@
 </body>
 </html>
 
-
-
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NovaStream | Cinematic Video Vault</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    :root {
-      --pink: #ff7eb9;
-      --pink-glow: rgba(255, 126, 185, 0.3);
-      --bg: #0f0f0f;
-      --header-bg: #0f0f0f;
-      --card-bg: #1e1e1e;
-      --text: #ffffff;
-      --text-muted: #aaaaaa;
-      --border: #333333;
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      background-color: var(--bg);
-      color: var(--text);
-      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      padding-top: 70px;
-      overflow-x: hidden;
-    }
-
-    /* --- NAVIGATION BAR --- */
-    .navbar {
-      position: fixed;
-      top: 0;
-      width: 100%;
-      height: 60px;
-      background: var(--header-bg);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 24px;
-      border-bottom: 1px solid var(--border);
-      z-index: 1000;
-    }
-
-    .logo { 
-      font-size: 22px; 
-      font-weight: 900; 
-      cursor: pointer; 
-      letter-spacing: -1px;
-      user-select: none;
-    }
-    .logo span { 
-      color: var(--pink); 
-      text-shadow: 0 0 10px var(--pink); 
-    }
-
-    .search-area { 
-      flex: 0 1 500px; 
-      display: flex; 
-    }
-    .search-area input {
-      width: 100%;
-      background: #121212;
-      border: 1px solid var(--border);
-      color: white;
-      padding: 10px 18px;
-      border-radius: 40px 0 0 40px;
-      outline: none;
-      font-size: 15px;
-      transition: border-color 0.3s;
-    }
-    .search-area input:focus { 
-      border-color: var(--pink); 
-    }
-    .search-area button {
-      background: #222;
-      border: 1px solid var(--border);
-      border-left: none;
-      color: white;
-      padding: 0 20px;
-      border-radius: 0 40px 40px 0;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-    .search-area button:hover {
-      background: #333;
-    }
-
-    .nav-actions { 
-      display: flex; 
-      align-items: center; 
-      gap: 12px; 
-    }
-
-    .btn-create {
-      background: var(--pink);
-      color: black;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 25px;
-      font-weight: bold;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: transform 0.3s, box-shadow 0.3s;
-    }
-    .btn-create:hover { 
-      transform: scale(1.05); 
-      box-shadow: 0 0 15px var(--pink); 
-    }
-
-    .btn-logout {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      padding: 8px 15px;
-      border-radius: 20px;
-      cursor: pointer;
-      transition: color 0.3s, border-color 0.3s;
-    }
-    .btn-logout:hover { 
-      color: white; 
-      border-color: #ff4d4d; 
-    }
-
-    /* --- HOME VIEW (GRID) --- */
-    .container { 
-      padding: 24px; 
-      max-width: 1800px; 
-      margin: 0 auto; 
-    }
-    .video-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 30px 20px;
-    }
-
-    .video-card { 
-      cursor: pointer; 
-      border-radius: 12px; 
-      transition: transform 0.3s; 
-    }
-    .video-card:hover {
-      transform: translateY(-4px);
-    }
-    .thumbnail-box {
-      width: 100%;
-      aspect-ratio: 16/9;
-      background: #000;
-      border-radius: 12px;
-      overflow: hidden;
-      position: relative;
-      border: 1px solid transparent;
-      transition: border-color 0.3s;
-    }
-    .video-card:hover .thumbnail-box { 
-      border-color: var(--pink); 
-    }
-    .thumbnail-box video,
-    .thumbnail-box img { 
-      width: 100%; 
-      height: 100%; 
-      object-fit: cover; 
-    }
-    
-    .video-info { 
-      display: flex; 
-      margin-top: 12px; 
-      gap: 12px; 
-    }
-    .v-details h3 { 
-      margin: 0; 
-      font-size: 16px; 
-      line-height: 1.4;
-      font-weight: 600;
-    }
-    .v-details p { 
-      margin: 6px 0; 
-      color: var(--text-muted); 
-      font-size: 14px; 
-    }
-    .del-btn { 
-      color: #ff4d4d; 
-      background: none; 
-      border: none; 
-      font-size: 12px; 
-      cursor: pointer; 
-      padding: 0; 
-      margin-top: 8px; 
-      opacity: 0.6;
-      transition: opacity 0.3s;
-    }
-    .del-btn:hover { 
-      opacity: 1; 
-      text-decoration: underline; 
-    }
-
-    /* --- THEATER MODE (PLAYER VIEW) --- */
-    #playerView {
-      display: none;
-      padding: 24px 60px;
-      max-width: 1600px;
-      margin: 0 auto;
-      grid-template-columns: 1fr 400px;
-      gap: 24px;
-    }
-
-    .main-video-col video {
-      width: 100%;
-      aspect-ratio: 16/9;
-      border-radius: 12px;
-      background: #000;
-    }
-
-    .main-video-info h2 { 
-      font-size: 24px; 
-      margin: 20px 0 10px;
-      font-weight: 600;
-    }
-    .desc-box {
-      background: #272727;
-      padding: 15px;
-      border-radius: 12px;
-      font-size: 14px;
-      line-height: 1.5;
-      color: var(--text-muted);
-    }
-
-    .sidebar-col { 
-      display: flex; 
-      flex-direction: column; 
-      gap: 16px; 
-    }
-    .side-card { 
-      display: flex; 
-      gap: 12px; 
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-    .side-card:hover {
-      transform: translateX(4px);
-    }
-    .side-thumb { 
-      width: 160px; 
-      height: 90px; 
-      border-radius: 8px; 
-      overflow: hidden; 
-      background: #000; 
-      flex-shrink: 0; 
-    }
-    .side-thumb video,
-    .side-thumb img { 
-      width: 100%; 
-      height: 100%; 
-      object-fit: cover; 
-    }
-    .side-info h4 { 
-      margin: 0; 
-      font-size: 14px; 
-      line-height: 1.3; 
-      color: #fff;
-      font-weight: 500;
-    }
-
-    /* --- UPLOAD MODAL --- */
-    .modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.85);
-      z-index: 2000;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(5px);
-    }
-    .modal-content {
-      background: #1e1e1e;
-      width: 95%;
-      max-width: 500px;
-      padding: 30px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      position: relative;
-    }
-    .modal-content h2 { 
-      margin-top: 0; 
-      color: var(--pink); 
-    }
-    .close-btn {
-      position: absolute;
-      top: 20px;
-      right: 25px;
-      font-size: 30px;
-      cursor: pointer;
-      color: var(--text-muted);
-      transition: color 0.3s;
-    }
-    .close-btn:hover {
-      color: white;
-    }
-
-    .modal-content input[type="text"],
-    .modal-content textarea {
-      width: 100%;
-      background: #000;
-      border: 1px solid #333;
-      color: white;
-      padding: 12px;
-      border-radius: 8px;
-      margin: 10px 0;
-      font-family: inherit;
-      font-size: 14px;
-    }
-    .modal-content input[type="text"]:focus,
-    .modal-content textarea:focus {
-      outline: none;
-      border-color: var(--pink);
-    }
-
-    /* --- PROGRESS BAR --- */
-    .prog-wrap { 
-      display: none; 
-      margin-top: 20px; 
-    }
-    .prog-bg { 
-      background: #333; 
-      height: 8px; 
-      border-radius: 10px; 
-      overflow: hidden; 
-    }
-    .prog-fill { 
-      height: 100%; 
-      background: var(--pink); 
-      width: 0%; 
-      transition: width 0.3s; 
-      box-shadow: 0 0 10px var(--pink); 
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: var(--text-muted);
-      grid-column: 1 / -1;
-    }
-    .empty-state i {
-      font-size: 64px;
-      margin-bottom: 20px;
-      opacity: 0.3;
-    }
-
-    @media (max-width: 1000px) {
-      #playerView { 
-        grid-template-columns: 1fr; 
-        padding: 15px; 
-      }
-      .navbar {
-        padding: 0 15px;
-      }
-      .search-area {
-        flex: 1;
-        max-width: 300px;
-      }
-    }
-
-    @media (max-width: 600px) {
-      .logo {
-        font-size: 18px;
-      }
-      .search-area {
-        display: none;
-      }
-      .btn-create span {
-        display: none;
-      }
-    }
-    .main-footer {
-      border-top: 1px solid var(--border);
-      padding: 40px 20px;
-      margin-top: 60px;
-      text-align: center;
-      background: #0a0a0a;
-    }
-    .footer-content h3 {
-      color: var(--pink);
-      margin-bottom: 15px;
-    }
-    .view-photos-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      background: #1e1e1e;
-      color: white;
-      padding: 12px 25px;
-      border-radius: 30px;
-      text-decoration: none;
-      border: 1px solid var(--pink);
-      transition: 0.3s;
-      font-weight: bold;
-    }
-    .view-photos-btn:hover {
-      background: var(--pink);
-      color: black;
-      box-shadow: 0 0 20px var(--pink-glow);
-    }
-  </style>
-</head>
-<body>
-
-  <header class="navbar">
-    <div class="logo" onclick="goHome()">Nova<span>Stream</span></div>
-    <div class="search-area">
-      <input type="text" id="searchInput" placeholder="Search videos..." oninput="filterVideos()">
-      <button><i class="fas fa-search"></i></button>
-    </div>
-    <div class="nav-actions">
-      <button class="btn-create" onclick="toggleModal(true)">
-        <i class="fas fa-plus"></i>
-        <span>Create</span>
-      </button>
-      <button class="btn-logout" onclick="logout()">
-        <i class="fas fa-sign-out-alt"></i>
-      </button>
-    </div>
-  </header>
-
-  <main class="container" id="homeView">
-    <div class="video-grid" id="vGrid"></div>
-  </main>
-
-  <main id="playerView">
-    <div class="main-video-col">
-      <video id="mainPlayer" controls autoplay></video>
-      <div class="main-video-info">
-        <h2 id="viewTitle"></h2>
-        <div class="desc-box" id="viewDesc"></div>
-      </div>
-    </div>
-    <div class="sidebar-col" id="sidebarGrid"></div>
-  </main>
-
-  <div class="modal" id="upModal" onclick="closeModalOnOutsideClick(event)">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <span class="close-btn" onclick="toggleModal(false)">&times;</span>
-      <h2>Upload to Vault</h2>
-      <input type="text" id="title" placeholder="Title" required>
-      <textarea id="desc" placeholder="Description..." rows="4"></textarea>
-      <input type="file" id="fIn" accept="video/*" style="margin: 10px 0;">
-      <input type="file" id="thumbIn" accept="image/*" style="margin:10px 0;">
-      <small style="color:#aaa">Optional custom thumbnail (jpg / png)</small>
-      <button class="btn-create" style="width:100%; justify-content:center;" onclick="handleUpload()">
-        Publish
-      </button>
-      
-      <div class="prog-wrap" id="prog">
-        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px">
-          <span id="pStat">Uploading...</span>
-          <span id="pNum">0%</span>
-        </div>
-        <div class="prog-bg"><div class="prog-fill" id="pBar"></div></div>
-      </div>
-    </div>
-  </div>
-
-  <footer class="main-footer">
-    <div class="footer-content">
-      <h3>Discover More</h3>
-      <p style="color: var(--text-muted); margin-bottom: 20px;">Explore our curated visual library and cinematic frames.</p>
-      <a href="/photos.html" class="view-photos-btn">
-        <i class="fas fa-camera-retro"></i> View Photos
-      </a>
-    </div>
-  </footer>
-
-  <script>
-    let allVideos = [];
-
-    async function loadVideos() {
-      try {
-        const res = await fetch('/api/videos');
-        if (res.status === 401) return window.location.href = '/login.html';
-        allVideos = await res.json();
-        renderGrid(allVideos);
-      } catch (err) { 
-        showEmptyState("Unable to load videos"); 
-      }
-    }
-
-    function renderGrid(list) {
-      const grid = document.getElementById('vGrid');
-      if (list.length === 0) {
-        showEmptyState("No videos yet. Click Create to upload!");
-        return;
-      }
-
-      grid.innerHTML = list.map(v => `
-        <div class="video-card" onclick="openTheaterMode('${v.id}')">
-          <div class="thumbnail-box" onmouseenter="previewPlay(this)" onmouseleave="previewStop(this)">
-            ${v.thumbnail 
-              ? `<img src="${v.thumbnail}" style="width:100%;height:100%;object-fit:cover;">`
-              : `<video src="${v.url}#t=0.5" muted loop preload="metadata"></video>`
-            }
-          </div>
-          <div class="video-info">
-            <div class="v-details">
-              <h3>${escapeHtml(v.title)}</h3>
-              <p>${(v.size / 1e6).toFixed(1)} MB</p>
-              <button class="del-btn" onclick="event.stopPropagation(); deleteVid('${v.id}')">
-                <i class="fas fa-trash"></i> Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function openTheaterMode(id) {
-      const video = allVideos.find(v => v.id === id);
-      if (!video) return;
-
-      // Set main player
-      document.getElementById('mainPlayer').src = video.url;
-      document.getElementById('viewTitle').innerText = video.title;
-      document.getElementById('viewDesc').innerText = video.description || 'No description';
-
-      // Show player view, hide grid
-      document.getElementById('homeView').style.display = 'none';
-      document.getElementById('playerView').style.display = 'grid';
-
-      // Load sidebar with other videos
-      const sidebar = document.getElementById('sidebarGrid');
-      const others = allVideos.filter(v => v.id !== id);
-      sidebar.innerHTML = others.map(v => `
-        <div class="side-card" onclick="openTheaterMode('${v.id}')">
-          <div class="side-thumb">
-            ${v.thumbnail 
-              ? `<img src="${v.thumbnail}" style="width:100%;height:100%;object-fit:cover;">`
-              : `<video src="${v.url}#t=0.5" muted preload="metadata"></video>`
-            }
-          </div>
-          <div class="side-info">
-            <h4>${escapeHtml(v.title)}</h4>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function previewPlay(el) {
-      const video = el.querySelector('video');
-      if (video) video.play();
-    }
-
-    function previewStop(el) {
-      const video = el.querySelector('video');
-      if (video) {
-        video.pause();
-        video.currentTime = 0;
-      }
-    }
-
-    async function handleUpload() {
-      const file = document.getElementById('fIn').files[0];
-      const thumb = document.getElementById('thumbIn').files[0];
-      const title = document.getElementById('title').value.trim();
-      const desc = document.getElementById('desc').value;
-
-      if (!file || !title) return alert("Video and title are required");
-
-      const fd = new FormData();
-      fd.append('video', file);
-      if (thumb) fd.append('thumbnail', thumb);
-      fd.append('title', title);
-      fd.append('description', desc);
-
-      document.getElementById('prog').style.display = 'block';
-      const xhr = new XMLHttpRequest();
-      xhr.upload.onprogress = e => {
-        if (e.lengthComputable) {
-          const p = Math.round((e.loaded / e.total) * 100);
-          document.getElementById('pBar').style.width = p + '%';
-          document.getElementById('pNum').innerText = p + '%';
-        }
-      };
-      xhr.onload = () => xhr.status === 200 ? location.reload() : alert("Upload failed");
-      xhr.open('POST', '/api/upload');
-      xhr.send(fd);
-    }
-
-    async function deleteVid(id) {
-      if (!confirm("Are you sure?")) return;
-      const res = await fetch(`/api/videos/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      if (res.ok) loadVideos();
-    }
-
-    function goHome() {
-      document.getElementById('mainPlayer').src = '';
-      document.getElementById('playerView').style.display = 'none';
-      document.getElementById('homeView').style.display = 'block';
-    }
-
-    function toggleModal(show) {
-      document.getElementById('upModal').style.display = show ? 'flex' : 'none';
-      if (!show) {
-        document.getElementById('title').value = '';
-        document.getElementById('desc').value = '';
-        document.getElementById('fIn').value = '';
-        document.getElementById('thumbIn').value = '';
-        document.getElementById('prog').style.display = 'none';
-        document.getElementById('pBar').style.width = '0%';
-      }
-    }
-
-    function closeModalOnOutsideClick(event) {
-      if (event.target.id === 'upModal') {
-        toggleModal(false);
-      }
-    }
-
-    function filterVideos() {
-      const query = document.getElementById('searchInput').value.toLowerCase();
-      if (!query) {
-        renderGrid(allVideos);
-        return;
-      }
-      const filtered = allVideos.filter(v => 
-        v.title.toLowerCase().includes(query) || 
-        (v.description && v.description.toLowerCase().includes(query))
-      );
-      renderGrid(filtered);
-    }
-
-    function showEmptyState(message) {
-      const grid = document.getElementById('vGrid');
-      grid.innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-video"></i>
-          <h2>${message}</h2>
-        </div>
-      `;
-    }
-
-    function logout() {
-      window.location.href = '/api/logout';
-    }
-
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    loadVideos();
-  </script>
-</body>
-</html> -->
+ -->
