@@ -71,27 +71,6 @@
 
   <script>
     let scale = 1;
-
-    // async function load() {
-    //   try {
-    //     const res = await fetch('/api/images');
-    //     const data = await res.json();
-    //     const grid = document.getElementById('photoGrid');
-        
-    //     if (data.length === 0) {
-    //         grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #666; margin-top: 50px;">No images in your collection yet.</p>`;
-    //         return;
-    //     }
-
-    //     grid.innerHTML = data.map(p => `
-    //         <div class="pin-card" onclick="openZoom('${p.url}', '${p.id}')">
-    //         <img src="${p.url}" loading="lazy">
-    //         </div>
-    //     `).join('');
-    //   } catch (err) {
-    //       console.error("Load failed", err);
-    //   }
-    // }
     async function load() {
       try {
         const res = await fetch('/api/images');
